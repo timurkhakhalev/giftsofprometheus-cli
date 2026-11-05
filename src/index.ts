@@ -143,14 +143,30 @@ function out(value: unknown) {
   console.log(JSON.stringify(value, null, program.opts().json ? 0 : 2))
 }
 
+// What an agent must do on 401. It is in the error itself, so an agent without the skill also knows to sign the user in
+const SIGN_IN_STEPS =
+  'Sign the user in: run `login --start` with the same launcher and --json, give the user verificationUrl and userCode in one line, run `login --wait` (it waits for the confirmation), then repeat this command.'
+
+const interactive = () => !program.opts().json && Boolean(process.stdin.isTTY && process.stderr.isTTY)
+
 function run<Args extends unknown[]>(fn: (...args: Args) => Promise<unknown>) {
   return async (...args: Args) => {
     try {
-      out(await fn(...args))
+      try {
+        out(await fn(...args))
+      } catch (e) {
+        // A person in a terminal is taken through the browser confirmation and gets the answer, instead of an error to act on
+        if (!(e instanceof ApiError && e.status === 401 && interactive())) throw e
+        const device = await startLogin()
+        console.error(`Sign-in needed. Open ${verificationUrl(device.userCode)} and confirm the code ${device.userCode}`)
+        await waitLogin(device)
+        out(await fn(...args))
+      }
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Unknown error'
+      const status = e instanceof ApiError ? e.status : 1
 
-      if (program.opts().json) console.log(JSON.stringify({ error: { message, status: e instanceof ApiError ? e.status : 1 } }))
+      if (program.opts().json) console.log(JSON.stringify({ error: { message, status, ...(status === 401 ? { nextStep: SIGN_IN_STEPS } : {}) } }))
       else console.error(printable(message))
       process.exitCode = 1
     }
@@ -748,11 +764,7 @@ async function onboardingReact(answers: string[]) {
 async function onboardingFinish(o: { queryText?: string }) {
   const draft = await currentDraft()
 
-  if (!(await stored()))
-    throw new ApiError(
-      'Not signed in: run giftsofprometheus login --start, give the user the link, run login --wait, then onboarding finish again. The draft is kept',
-      401
-    )
+  if (!(await stored())) throw new ApiError('Not signed in. The onboarding draft is kept until it is saved', 401)
   const queryText = o.queryText?.trim() || draft.queryText
 
   z.object({ saved: z.literal(true) }).parse(

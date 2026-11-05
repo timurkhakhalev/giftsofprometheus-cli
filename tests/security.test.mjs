@@ -270,6 +270,11 @@ test('onboarding keeps a local draft, answers by card number and saves it only a
     const anonymous = await h.cli(['onboarding', 'finish'])
     assert.equal(anonymous.code, 1)
     assert.equal(JSON.parse(anonymous.stdout).error.status, 401)
+    assert.match(
+      JSON.parse(anonymous.stdout).error.nextStep,
+      /login --start.*login --wait.*repeat this command/,
+      'an agent learns from the error how to sign the user in'
+    )
     assert.equal(
       h.requests.some(r => r.path === '/api/knowledge/onboarding'),
       false
