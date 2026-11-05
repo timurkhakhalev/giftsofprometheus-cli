@@ -14,7 +14,8 @@ jobs:
     environment: npm
     env:
       # Empty until the npm package exists; the release then ships only on GitHub
-      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      # setup-node fills NODE_AUTH_TOKEN with a placeholder, so the check reads this one
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
@@ -35,5 +36,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
       - name: Publish to npm
-        if: ${{ env.NODE_AUTH_TOKEN != '' }}
+        if: ${{ env.NPM_TOKEN != '' }}
         run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
