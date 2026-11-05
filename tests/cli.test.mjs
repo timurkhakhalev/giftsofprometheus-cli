@@ -31,7 +31,13 @@ test('CLI validates credentials and business responses while preserving raw JSON
   const cli = args =>
     new Promise((resolve, reject) => {
       const child = spawn(process.execPath, [executable, '--json', ...args], {
-        env: { ...process.env, GIFTSOFPROMETHEUS_URL: base, XDG_CONFIG_HOME: config, GIFTSOFPROMETHEUS_NO_UPDATE_CHECK: '1' },
+        env: {
+          ...process.env,
+          GIFTSOFPROMETHEUS_URL: base,
+          XDG_CONFIG_HOME: config,
+          GIFTSOFPROMETHEUS_NO_UPDATE_CHECK: '1',
+          GIFTSOFPROMETHEUS_NO_BROWSER: '1',
+        },
         timeout: 5000,
       })
 

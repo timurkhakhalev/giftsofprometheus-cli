@@ -4,6 +4,7 @@
 
 - An npm-installed CLI checks for a new version once a day and prints a line starting with `Update:` on stderr after the command; npx runs are not checked. `GIFTSOFPROMETHEUS_NO_UPDATE_CHECK=1` or `CI` turns it off.
 - Installed copies of the skill are compared with every released version by a hash that leaves out the `description` line. `doctor` reports each as `current`, `outdated`, `modified` or `linked`; `skill update` replaces outdated copies and keeps a custom description, `--force` also replaces copies edited by hand.
+- `GIFTSOFPROMETHEUS_NO_BROWSER=1` keeps `login` from opening a browser; the tests set it, so they no longer open tabs.
 - `skills/history.json` holds the hash and description of every release; `pnpm skill-history` regenerates it.
 - Skill: the agent offers an update in one line and runs it only after the user agrees.
 - `login --wait` and `login` back off on HTTP 429 the same way as on `slow_down` instead of failing a login the user may already have confirmed.

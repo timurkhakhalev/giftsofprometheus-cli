@@ -333,7 +333,8 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 function openBrowser(url: URL) {
   const opener = process.platform === 'darwin' ? '/usr/bin/open' : process.platform === 'win32' ? null : 'xdg-open'
 
-  if (!opener) return
+  // Set by the tests, and useful on a remote machine where the local browser is the wrong one
+  if (!opener || process.env.GIFTSOFPROMETHEUS_NO_BROWSER) return
   const child = spawn(opener, [url.href], { detached: true, stdio: 'ignore', shell: false })
   child.on('error', () => {})
   child.unref()
