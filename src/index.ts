@@ -102,10 +102,12 @@ async function login() {
   verification.searchParams.set('user_code', code)
   console.error(`Open ${verification} and confirm the code ${code}`)
   const opener = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'cmd' : 'xdg-open'
+
   const child = spawn(opener, process.platform === 'win32' ? ['/c', 'start', '', verification.toString()] : [verification.toString()], {
     detached: true,
     stdio: 'ignore',
   })
+
   child.on('error', () => {})
   child.unref()
   let interval = Number(data.interval || 5)

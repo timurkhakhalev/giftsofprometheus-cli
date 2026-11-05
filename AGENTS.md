@@ -8,10 +8,13 @@ Instructions for AI coding agents working in this repository.
 - `skills/giftsofprometheus/SKILL.md`: the agent skill. It ships in the npm package, prints with `giftsofprometheus skill` and installs with `npx skills add`.
 - `.claude-plugin/marketplace.json`: the Claude Code plugin marketplace entry for the skill.
 - `tests/`: `node --test` suites that run the built CLI against a local fake server. Tests never call the real service.
+- `tools/typescript-quality/`: the local Oxlint rule plugin and its self-test, copied from the main giftsofprometheus repository. Keep it in sync with that copy when the rules change.
 
 ## Commands
 
-Use pnpm. `pnpm check` runs lint (oxlint), formatting (oxfmt), the type check, the build and the tests; it must pass before a commit.
+Use pnpm. `pnpm check` runs lint (oxlint with the quality plugin), formatting (oxfmt), the type check and build with tsrs, the quality-rule self-test and the tests; it must pass before a commit.
+
+`unknown` is acceptable only at genuine boundaries (HTTP responses, JSON parsing, errors). Validate such values with zod before using them. A rule exception is an exact-file override in `oxlint.config.ts` with a comment explaining why.
 
 ## Rules
 
@@ -34,6 +37,12 @@ Update all of the following in the same change:
 ## Documentation
 
 Do not hard-wrap prose in Markdown. Do not use emojis.
+
+The README is in Russian and also brings readers to the site. Keep it so:
+
+- Every link to giftsofprometheus.com carries `utm_source=github&utm_medium=readme&utm_campaign=cli`.
+- The conference and topic links in «Что есть в каталоге» use the site's catalog filters (`/?event=<slug>`, `/?topic=<slug>`). When the catalog gains a conference or the taxonomy changes, update them and check that each link opens a non-empty list.
+- Numbers about the catalog (talk counts) are approximate and must not exceed what the site shows.
 
 ## Releasing
 

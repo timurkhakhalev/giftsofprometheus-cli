@@ -1,18 +1,26 @@
 <p align="center">
-  <a href="https://giftsofprometheus.com"><img alt="Дары Прометея: мировые знания об ИИ на русском" src=".github/assets/banner.jpg" width="100%"></a>
+  <a href="https://giftsofprometheus.com/?utm_source=github&amp;utm_medium=readme&amp;utm_campaign=cli"><img alt="Дары Прометея: доклады AI-конференций на русском" src=".github/assets/banner.jpg" width="100%"></a>
 </p>
 
-# CLI «Даров Прометея»
+# Дары Прометея CLI: доклады AI-конференций на русском для вас и вашего AI-агента
 
-Ищите доклады AI-конференций, читайте их транскрипты и сохраняйте избранное на [giftsofprometheus.com](https://giftsofprometheus.com) из терминала или через AI-агента.
+**[Дары Прометея](https://giftsofprometheus.com/?utm_source=github&utm_medium=readme&utm_campaign=cli)** — каталог докладов мировых AI-конференций на русском языке: AI Engineer World's Fair, AI Engineer Summit, BAAI Conference (北京智源大会), Apsara Conference (云栖大会) и другие. У каждого доклада есть русское название, подробное описание с TL;DR, главы с таймкодами, профили спикеров и полный транскрипт.
+
+Этот CLI открывает каталог для терминала и AI-агентов: Claude Code, Codex, Cursor и других. Агент сам подберёт доклады под вашу задачу, прочитает транскрипт и сохранит полезное в избранное вашего аккаунта на [giftsofprometheus.com](https://giftsofprometheus.com/?utm_source=github&utm_medium=readme&utm_campaign=cli).
 
 <p>
+  <a href="https://giftsofprometheus.com/?utm_source=github&amp;utm_medium=readme&amp;utm_campaign=cli"><img alt="Каталог: giftsofprometheus.com" src="https://img.shields.io/badge/каталог-giftsofprometheus.com-173a63.svg?style=for-the-badge&amp;labelColor=0a0f1c" height="28"></a>
   <a href="https://github.com/timurkhakhalev/giftsofprometheus-cli/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/timurkhakhalev/giftsofprometheus-cli/ci.yml?branch=main&amp;style=for-the-badge&amp;labelColor=0a0f1c&amp;color=173a63&amp;label=CI" height="28"></a>
   <a href="LICENSE"><img alt="Лицензия: Apache-2.0" src="https://img.shields.io/github/license/timurkhakhalev/giftsofprometheus-cli.svg?style=for-the-badge&amp;labelColor=0a0f1c&amp;color=173a63" height="28"></a>
-  <a href="https://giftsofprometheus.com"><img alt="giftsofprometheus.com" src="https://img.shields.io/badge/каталог-giftsofprometheus.com-173a63.svg?style=for-the-badge&amp;labelColor=0a0f1c" height="28"></a>
 </p>
 
-«Дары Прометея» собирают доклады AI-конференций (AI Engineer, BAAI, 云栖 и других) и дают каждому русское название и описание. Сайт — чтобы читать. CLI отдаёт тот же каталог вашему агенту: он подбирает доклады под задачу, читает полные транскрипты и сохраняет то, что вы попросите, в тот же аккаунт, что и на сайте.
+## Зачем это нужно
+
+- **Мировой опыт AI-инженерии на русском.** Больше 1400 докладов о кодинг-агентах, RAG, evals, MCP и архитектуре агентов. Не нужно смотреть часовые видео на английском или китайском, чтобы понять, стоит ли доклад вашего времени.
+- **Ответ под вашу задачу, а не список ссылок.** Опишите агенту, над чем работаете. Он найдёт доклады, прочитает транскрипты и перескажет, что из них применимо у вас.
+- **Один аккаунт для сайта и агента.** Что агент сохранил, появится в [избранном на сайте](https://giftsofprometheus.com/account?utm_source=github&utm_medium=readme&utm_campaign=cli). Интересы, которые вы указали [на сайте](https://giftsofprometheus.com/welcome?utm_source=github&utm_medium=readme&utm_campaign=cli), агент учитывает в подборке.
+
+Удобнее читать глазами? Всё то же самое есть на [giftsofprometheus.com](https://giftsofprometheus.com/?utm_source=github&utm_medium=readme&utm_campaign=cli): [подбор докладов за минуту](https://giftsofprometheus.com/welcome?utm_source=github&utm_medium=readme&utm_campaign=cli), [персональная лента](https://giftsofprometheus.com/for-you?utm_source=github&utm_medium=readme&utm_campaign=cli) и [спикеры](https://giftsofprometheus.com/speakers?utm_source=github&utm_medium=readme&utm_campaign=cli).
 
 ## Установка
 
@@ -37,11 +45,11 @@ giftsofprometheus favorites add <slug>              # появится в изб
 giftsofprometheus feed                              # подборка по вашим интересам
 ```
 
-`login` подключает устройство через подтверждение в браузере, токены копировать не нужно. Сессия живёт 30 дней и хранится в `$XDG_CONFIG_HOME/giftsofprometheus/credentials.json` (по умолчанию `~/.config/giftsofprometheus/`), читать её можете только вы. В кабинете на сайте видны все подключённые устройства, любое можно отключить. `giftsofprometheus logout` отключает текущее.
+Для транскриптов, избранного и ленты нужен бесплатный аккаунт: [войдите на сайте](https://giftsofprometheus.com/login?utm_source=github&utm_medium=readme&utm_campaign=cli) по ссылке из письма, без пароля. `login` подключает к этому аккаунту устройство через подтверждение в браузере, токены копировать не нужно. Сессия живёт 30 дней и хранится в `$XDG_CONFIG_HOME/giftsofprometheus/credentials.json` (по умолчанию `~/.config/giftsofprometheus/`), читать её можете только вы. В [кабинете](https://giftsofprometheus.com/account?utm_source=github&utm_medium=readme&utm_campaign=cli) видны все подключённые устройства, любое можно отключить. `giftsofprometheus logout` отключает текущее.
 
-## Для AI-агентов
+## Для AI-агентов: Claude Code, Codex, Cursor
 
-В репозитории есть skill: он объясняет агенту, когда и как пользоваться CLI. Поставить его в Claude Code, Codex, Cursor и других агентов можно через [skills](https://skills.sh):
+В репозитории есть skill: он объясняет агенту, когда и как пользоваться CLI. Поставить его можно через [skills](https://skills.sh):
 
 ```bash
 npx skills add timurkhakhalev/giftsofprometheus-cli
@@ -62,7 +70,31 @@ npx skills add timurkhakhalev/giftsofprometheus-cli
 
 `giftsofprometheus skill` печатает skill той же версии, что и установленный CLI, а `giftsofprometheus skill --path` — путь к его папке, чтобы сделать ссылку.
 
+Примеры запросов агенту:
+
+- «Найди доклады про оценку качества агентов и перескажи, как команды строят evals».
+- «Что рассказывали на AI Engineer про MCP в продакшене? Сохрани два самых практичных доклада».
+- «Подбери доклады под мою задачу: переводим поддержку на голосового агента».
+
 По инструкции skill агент меняет избранное и интересы только по вашей просьбе. Поиск и чтение ничего не сохраняют, не лайкают и не скрывают.
+
+## Что есть в каталоге
+
+**Конференции:** [AI Engineer World's Fair 2026](https://giftsofprometheus.com/?event=ai-engineer-world-s-fair-2026&utm_source=github&utm_medium=readme&utm_campaign=cli), [AI Engineer World's Fair 2025](https://giftsofprometheus.com/?event=ai-engineer-world-s-fair-2025&utm_source=github&utm_medium=readme&utm_campaign=cli), [AI Engineer Europe 2026](https://giftsofprometheus.com/?event=ai-engineer-europe-2026&utm_source=github&utm_medium=readme&utm_campaign=cli), [AI Engineer World's Fair 2024](https://giftsofprometheus.com/?event=ai-engineer-world-s-fair-2024&utm_source=github&utm_medium=readme&utm_campaign=cli), [AI Engineer Code 2025](https://giftsofprometheus.com/?event=ai-engineer-code-2025&utm_source=github&utm_medium=readme&utm_campaign=cli), [AI Engineer Summit 2025](https://giftsofprometheus.com/?event=ai-engineer-summit-2025&utm_source=github&utm_medium=readme&utm_campaign=cli), [AI Engineer Summit 2023](https://giftsofprometheus.com/?event=ai-engineer-summit-2023&utm_source=github&utm_medium=readme&utm_campaign=cli), [BAAI Conference 2026 · 北京智源大会](https://giftsofprometheus.com/?event=baai-conference-2026&utm_source=github&utm_medium=readme&utm_campaign=cli), [Apsara Conference 2026 · 云栖大会](https://giftsofprometheus.com/?event=apsara-conference-2026&utm_source=github&utm_medium=readme&utm_campaign=cli).
+
+**Темы:**
+
+| Раздел | Подтемы |
+|---|---|
+| Разработка с AI-агентами | [кодинг-агенты](https://giftsofprometheus.com/?topic=coding-agents&utm_source=github&utm_medium=readme&utm_campaign=cli), [код-ревью и тесты](https://giftsofprometheus.com/?topic=code-review-verification&utm_source=github&utm_medium=readme&utm_campaign=cli), [harness и skills](https://giftsofprometheus.com/?topic=harness-skills&utm_source=github&utm_medium=readme&utm_campaign=cli), [спеки и SDD](https://giftsofprometheus.com/?topic=spec-driven-development&utm_source=github&utm_medium=readme&utm_campaign=cli) |
+| Архитектура агентов | [паттерны агентов](https://giftsofprometheus.com/?topic=agent-patterns&utm_source=github&utm_medium=readme&utm_campaign=cli), [мультиагентность](https://giftsofprometheus.com/?topic=multi-agent-orchestration&utm_source=github&utm_medium=readme&utm_campaign=cli), [контекст и память](https://giftsofprometheus.com/?topic=context-memory&utm_source=github&utm_medium=readme&utm_campaign=cli), [MCP и A2A](https://giftsofprometheus.com/?topic=tools-protocols&utm_source=github&utm_medium=readme&utm_campaign=cli) |
+| Данные и знания | [RAG и эмбеддинги](https://giftsofprometheus.com/?topic=rag-search&utm_source=github&utm_medium=readme&utm_campaign=cli), [документы и OCR](https://giftsofprometheus.com/?topic=documents-ocr&utm_source=github&utm_medium=readme&utm_campaign=cli), [графы знаний](https://giftsofprometheus.com/?topic=knowledge-graphs&utm_source=github&utm_medium=readme&utm_campaign=cli) |
+| Качество и эксплуатация | [evals и бенчмарки](https://giftsofprometheus.com/?topic=evals-benchmarks&utm_source=github&utm_medium=readme&utm_campaign=cli), [observability](https://giftsofprometheus.com/?topic=observability-tracing&utm_source=github&utm_medium=readme&utm_campaign=cli), [инфраструктура](https://giftsofprometheus.com/?topic=infrastructure-reliability&utm_source=github&utm_medium=readme&utm_campaign=cli) |
+| Безопасность | [governance](https://giftsofprometheus.com/?topic=security-governance&utm_source=github&utm_medium=readme&utm_campaign=cli), [доступ и секреты](https://giftsofprometheus.com/?topic=access-auth&utm_source=github&utm_medium=readme&utm_campaign=cli), [песочницы](https://giftsofprometheus.com/?topic=sandboxes-execution&utm_source=github&utm_medium=readme&utm_campaign=cli) |
+| Модели | [обучение и RL](https://giftsofprometheus.com/?topic=training-rl&utm_source=github&utm_medium=readme&utm_campaign=cli), [инференс и открытые модели](https://giftsofprometheus.com/?topic=inference-open-models&utm_source=github&utm_medium=readme&utm_campaign=cli), [world models и роботы](https://giftsofprometheus.com/?topic=world-models-robotics&utm_source=github&utm_medium=readme&utm_campaign=cli) |
+| Интерфейсы и модальности | [голосовые агенты](https://giftsofprometheus.com/?topic=voice-speech&utm_source=github&utm_medium=readme&utm_campaign=cli), [мультимодальность](https://giftsofprometheus.com/?topic=multimodal-media&utm_source=github&utm_medium=readme&utm_campaign=cli), [computer use](https://giftsofprometheus.com/?topic=computer-use&utm_source=github&utm_medium=readme&utm_campaign=cli), [UX AI-продуктов](https://giftsofprometheus.com/?topic=ai-ux-design&utm_source=github&utm_medium=readme&utm_campaign=cli) |
+| AI-продукт и бизнес | [запуск продукта](https://giftsofprometheus.com/?topic=product-launch-growth&utm_source=github&utm_medium=readme&utm_campaign=cli), [экономика](https://giftsofprometheus.com/?topic=pricing-economics&utm_source=github&utm_medium=readme&utm_campaign=cli), [отраслевые применения](https://giftsofprometheus.com/?topic=industry-applications&utm_source=github&utm_medium=readme&utm_campaign=cli), [автоматизация](https://giftsofprometheus.com/?topic=business-automation&utm_source=github&utm_medium=readme&utm_campaign=cli), [агентная коммерция](https://giftsofprometheus.com/?topic=agentic-commerce&utm_source=github&utm_medium=readme&utm_campaign=cli) |
+| AI в компании и карьера | [внедрение AI](https://giftsofprometheus.com/?topic=ai-adoption-org&utm_source=github&utm_medium=readme&utm_campaign=cli), [карьера и стартапы](https://giftsofprometheus.com/?topic=careers-startups&utm_source=github&utm_medium=readme&utm_campaign=cli) |
 
 ## Команды
 
@@ -94,7 +126,7 @@ npx skills add timurkhakhalev/giftsofprometheus-cli
 
 ```bash
 pnpm install
-pnpm check      # линтер, форматирование, типы, сборка и тесты
+pnpm check      # линтер с правилами качества, форматирование, типы (tsrs), сборка и тесты
 node dist/index.js --help
 ```
 
@@ -106,4 +138,10 @@ node dist/index.js --help
 
 ## Лицензия
 
-[Apache-2.0](LICENSE)
+Код CLI — [Apache-2.0](LICENSE). Каталог, описания и транскрипты принадлежат [Дарам Прометея](https://giftsofprometheus.com/?utm_source=github&utm_medium=readme&utm_campaign=cli) и авторам докладов.
+
+---
+
+<p align="center">
+  <a href="https://giftsofprometheus.com/?utm_source=github&amp;utm_medium=readme&amp;utm_campaign=cli"><b>giftsofprometheus.com</b></a> — мировые знания об ИИ на русском
+</p>

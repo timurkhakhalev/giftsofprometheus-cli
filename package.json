@@ -29,13 +29,14 @@
   ],
   "type": "module",
   "scripts": {
-    "build": "tsc -p tsconfig.json && chmod +x dist/index.js",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build": "tsrs -p tsconfig.json && chmod +x dist/index.js",
+    "typecheck": "tsrs -p tsconfig.json --noEmit",
     "lint": "oxlint . --max-warnings 0",
     "format": "oxfmt --check .",
     "format:fix": "oxfmt --write .",
     "test": "pnpm build && node --test tests/*.test.mjs",
-    "check": "pnpm lint && pnpm format && pnpm typecheck && pnpm test",
+    "check": "pnpm lint && pnpm format && pnpm typecheck && pnpm test:quality && pnpm test",
+    "test:quality": "node --test tools/typescript-quality/verify.test.mjs",
     "prepublishOnly": "pnpm check"
   },
   "dependencies": {
@@ -43,10 +44,11 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@oxlint/plugins": "1.91.0",
     "@types/node": "^22.20.5",
     "oxfmt": "0.76.0",
     "oxlint": "1.91.0",
-    "typescript": "^7.0.2"
+    "tsrs": "0.20.1-ts7.1.0-beta"
   },
   "engines": {
     "node": ">=22.12"
