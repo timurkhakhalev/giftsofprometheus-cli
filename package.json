@@ -1,0 +1,56 @@
+{
+  "name": "@giftsofprometheus/cli",
+  "version": "0.1.0",
+  "description": "Search AI conference talks, read transcripts, and manage your Gifts of Prometheus favorites from the shell or an AI agent",
+  "keywords": [
+    "agents",
+    "ai",
+    "claude-code",
+    "cli",
+    "codex",
+    "conference-talks",
+    "skill",
+    "transcripts"
+  ],
+  "homepage": "https://github.com/timurkhakhalev/giftsofprometheus-cli#readme",
+  "bugs": "https://github.com/timurkhakhalev/giftsofprometheus-cli/issues",
+  "license": "Apache-2.0",
+  "author": "Timur Khakhalev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/timurkhakhalev/giftsofprometheus-cli.git"
+  },
+  "bin": {
+    "giftsofprometheus": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "skills"
+  ],
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json && chmod +x dist/index.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "oxlint . --max-warnings 0",
+    "format": "oxfmt --check .",
+    "format:fix": "oxfmt --write .",
+    "test": "pnpm build && node --test tests/*.test.mjs",
+    "check": "pnpm lint && pnpm format && pnpm typecheck && pnpm test",
+    "prepare": "npm run build",
+    "prepublishOnly": "pnpm check"
+  },
+  "dependencies": {
+    "commander": "^15.0.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "oxfmt": "0.76.0",
+    "oxlint": "1.91.0",
+    "typescript": "^7.0.2"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "packageManager": "pnpm@10.19.0"
+}

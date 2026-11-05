@@ -1,0 +1,49 @@
+name: Bug report
+description: Report a reproducible problem with the CLI, the skill or the catalog
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Please search existing issues first. Ideas and questions go to [Discussions](https://github.com/timurkhakhalev/giftsofprometheus-cli/discussions).
+        Do not paste the contents of `credentials.json` or anything personal.
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `giftsofprometheus --version`.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The commands you ran, in order.
+      render: bash
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What happened instead. Include the `--json` output of the failing command.
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Node.js version (`node -v`), and the agent if the CLI ran inside one (Claude Code, Codex, Cursor...).
+    validations:
+      required: false
