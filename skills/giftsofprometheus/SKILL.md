@@ -10,7 +10,7 @@ allowed-tools: Bash(giftsofprometheus:*)
 
 ## Setup
 
-Run `command -v giftsofprometheus`. If it is missing, ask the user to install it with `npm install -g @giftsofprometheus/cli`. Then run `giftsofprometheus --json doctor`:
+Run `command -v giftsofprometheus`. If it is missing, ask the user to install it as described in https://github.com/timurkhakhalev/giftsofprometheus-cli#install. Then run `giftsofprometheus --json doctor`:
 
 - `reachable: false`: the service is unavailable; report it and stop.
 - `authenticated: false`: search and talk metadata still work. For transcripts, favorites, interests and the feed, ask the user to run `giftsofprometheus login` and confirm the code in their browser.
