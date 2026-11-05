@@ -185,3 +185,121 @@ test('login bounds the polling interval and stores the token atomically, 0600, o
     await h.close()
   }
 })
+
+test('onboarding keeps a local draft, answers by card number and saves it only after login', async () => {
+  const h = await harness((request, response) => {
+    if (request.url === '/api/knowledge/topics') response.end(JSON.stringify({ topics: [{ slug: 'agents', title: 'Agents', section: null }] }))
+    else if (request.url === '/api/knowledge/onboarding/deck')
+      response.end(
+        JSON.stringify({
+          deck: [
+            { id: 11, slug: 'a', title: 'A' },
+            { id: 12, slug: 'b' },
+            { id: 13, slug: 'c' },
+          ],
+        })
+      )
+    else if (request.url === '/api/knowledge/onboarding/preview') response.end(JSON.stringify({ preview: [{ id: 20, slug: 'd', reason: 'r' }], next: null }))
+    else if (request.url === '/api/knowledge/onboarding') response.end(JSON.stringify({ saved: true }))
+    else response.end(JSON.stringify({ error: 'unexpected' }))
+  })
+
+  const directory = join(h.config, 'giftsofprometheus')
+  const draftFile = join(directory, 'onboarding.json')
+
+  try {
+    assert.equal(JSON.parse((await h.cli(['onboarding', 'topics'])).stdout).topics[0].slug, 'agents')
+    assert.equal((await h.cli(['onboarding', 'react', '1=like'])).code, 1, 'no draft yet')
+    assert.equal((await h.cli(['onboarding', 'deck', '--interest', 'agents=high'])).code, 1)
+
+    const deck = await h.cli(['onboarding', 'deck', '--interest', 'agents=interested', '--interest', 'rag=not_interested', '--query-text', ' build agents '])
+    assert.equal(deck.code, 0, deck.stdout)
+    const started = JSON.parse(deck.stdout)
+    assert.deepEqual(
+      started.deck.map(c => [c.n, c.id]),
+      [
+        [1, 11],
+        [2, 12],
+        [3, 13],
+      ]
+    )
+    assert.deepEqual(h.requests.at(-1).body, {
+      interests: [
+        { topic: 'agents', level: 'interested' },
+        { topic: 'rag', level: 'not_interested' },
+      ],
+    })
+    assert.equal(h.requests.at(-1).authorization, undefined)
+    assert.equal((await stat(draftFile)).mode & 0o777, 0o600)
+
+    const sent = h.requests.length
+
+    for (const bad of [['4=like'], ['1=love'], ['x=like'], ['1=like=1']]) assert.equal((await h.cli(['onboarding', 'react', ...bad])).code, 1, bad.join())
+    assert.equal(h.requests.length, sent, 'invalid answers are rejected before any request')
+
+    const react = JSON.parse((await h.cli(['onboarding', 'react', '1=like', '3=dislike', '2=like'])).stdout)
+    assert.deepEqual(react.unanswered, [])
+    assert.deepEqual(h.requests.at(-1).body.shownTalkIds, [11, 12, 13])
+    const skipped = JSON.parse((await h.cli(['onboarding', 'react', '2=skip'])).stdout)
+    assert.deepEqual(skipped.unanswered, [2])
+    assert.equal(skipped.preview[0].reason, 'r')
+    assert.deepEqual(h.requests.at(-1).body.reactions, [
+      { talkId: 11, reaction: 'like' },
+      { talkId: 13, reaction: 'dislike' },
+    ])
+
+    const anonymous = await h.cli(['onboarding', 'finish'])
+    assert.equal(anonymous.code, 1)
+    assert.equal(JSON.parse(anonymous.stdout).error.status, 401)
+    assert.equal(
+      h.requests.some(r => r.path === '/api/knowledge/onboarding'),
+      false
+    )
+    await stat(draftFile)
+
+    await writeFile(join(directory, 'credentials.json'), JSON.stringify({ base: h.base, token: 'tok' }))
+    const finished = await h.cli(['onboarding', 'finish'])
+    assert.equal(finished.code, 0, finished.stdout)
+    const saved = h.requests.at(-1)
+    assert.equal(saved.authorization, 'Bearer tok')
+    assert.equal(saved.body.draftId, started.draftId)
+    assert.equal(saved.body.queryText, 'build agents')
+    assert.equal(saved.body.reactions.length, 2)
+    await assert.rejects(stat(draftFile), 'the draft is removed after saving')
+  } finally {
+    await h.close()
+  }
+})
+
+test('login --start returns the link at once and --wait finishes it without printing secrets', async () => {
+  const h = await harness((request, response) => {
+    if (request.url === '/api/auth/device/code')
+      response.end(JSON.stringify({ user_code: 'ABCD-1234', device_code: 'secret-device', interval: 1, expires_in: 30 }))
+    else response.end(JSON.stringify({ access_token: 'tok', expires_in: 60 }))
+  })
+
+  const directory = join(h.config, 'giftsofprometheus')
+
+  try {
+    assert.equal((await h.cli(['login', '--wait'])).code, 1, 'nothing to wait for')
+    const started = await h.cli(['login', '--start'])
+    assert.equal(started.code, 0, started.stdout)
+    const prompt = JSON.parse(started.stdout)
+    assert.equal(prompt.userCode, 'ABCD-1234')
+    assert.equal(prompt.verificationUrl, `${h.base}/device?user_code=ABCD-1234`)
+    assert.doesNotMatch(started.stdout + started.stderr, /secret-device/)
+    assert.equal(
+      h.requests.some(r => r.path === '/api/auth/device/token'),
+      false
+    )
+    assert.equal((await stat(join(directory, 'login.json'))).mode & 0o777, 0o600)
+
+    const waited = await h.cli(['login', '--wait'])
+    assert.equal(waited.code, 0, waited.stdout)
+    assert.equal(JSON.parse(waited.stdout).signedIn, true)
+    assert.equal(h.requests.at(-1).body.device_code, 'secret-device')
+    assert.deepEqual(await readdir(directory), ['credentials.json'])
+  } finally {
+    await h.close()
+  }
+})

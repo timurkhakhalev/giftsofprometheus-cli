@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0
+
+- `onboarding topics`, `onboarding deck`, `onboarding react` and `onboarding finish`: a starting profile from topic choices and a numbered deck of up to 8 talks, judged by card number. The draft is kept in `onboarding.json` (0600) next to the session, so the steps before `finish` need no account and `finish` works after `login`.
+- `login --start` prints the confirmation link and code as JSON and exits; `login --wait` finishes that login. An agent can show the link without waiting for the whole device flow. Plain `login` works as before.
+- Skill: onboarding in the conversation; the agent signs in by itself when a command needs an account; reading needs no confirmation.
+- Requires the service endpoints `GET /api/knowledge/topics` and `POST /api/knowledge/onboarding/deck`.
+
 ## 0.1.3
 
 - README: installation from npm, npm badge.

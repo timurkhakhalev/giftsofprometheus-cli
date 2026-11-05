@@ -113,7 +113,11 @@ npx skills add timurkhakhalev/giftsofprometheus-cli
 | `profile update [--interest тема=уровень] [--remove-interest тема] [--query-text текст]` | Изменить интересы (`high`, `interested`, `not_interested`) или текущую задачу; остальное не меняется | ✓ |
 | `feed` | Подборка по вашему профилю | ✓ |
 | `request <путь>` | GET-запрос только на чтение к `/api/knowledge/…` или `/api/account/…` | ✓ |
-| `login`, `logout`, `whoami`, `doctor` | Вход, выход, текущий аккаунт, проверка настройки | |
+| `onboarding topics` | Темы для выбора интересов | |
+| `onboarding deck [--interest тема=уровень] [--query-text текст]` | Новый черновик по темам (`interested`, `not_interested`) и до 8 пронумерованных докладов для оценки | |
+| `onboarding react <номер>=like\|dislike\|skip…` | Оценить доклады из колоды по номерам и получить рекомендации, к которым они ведут | |
+| `onboarding finish [--query-text текст]` | Сохранить черновик в аккаунт | ✓ |
+| `login [--start\|--wait]`, `logout`, `whoami`, `doctor` | Вход, выход, текущий аккаунт, проверка настройки. `login --start` сразу печатает ссылку и код, `login --wait` ждёт подтверждения | |
 | `skill [--path]` | Skill для агента | |
 
 ## Настройки

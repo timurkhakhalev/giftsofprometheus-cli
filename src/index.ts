@@ -25,6 +25,12 @@ const directory = join(configHome, 'giftsofprometheus')
 
 const credentials = join(directory, 'credentials.json')
 
+// A device code started by `login --start` and not yet confirmed; it can be exchanged for a session, so it is kept like one
+const pendingLogin = join(directory, 'login.json')
+
+// The onboarding draft lives outside the project next to the session, so it survives `login` between `deck` and `finish`
+const onboardingDraft = join(directory, 'onboarding.json')
+
 type Credentials = { base: string; token: string }
 
 const credentialsSchema = z.object({ base: z.string(), token: z.string() })
@@ -67,21 +73,32 @@ class ApiError extends Error {
 // oxlint-disable-next-line no-control-regex -- matching control characters is the purpose of this function
 const printable = (value: string) => value.replace(/[\u0000-\u001f\u007f-\u009f]/g, '')
 
-// A fresh 0600 file renamed into place: the token never lands in an existing file with loose permissions or behind a symlink
-async function saveCredentials(value: Credentials) {
+// A fresh 0600 file renamed into place: a secret never lands in an existing file with loose permissions or behind a symlink
+async function saveJson(file: string, value: Credentials | DeviceLogin | Draft) {
   await mkdir(directory, { recursive: true, mode: 0o700 })
   const info = await lstat(directory)
 
   if (!info.isDirectory() || (process.getuid && info.uid !== process.getuid())) throw new ApiError(`Unsafe config directory: ${directory}`)
   await chmod(directory, 0o700)
-  const temporary = join(directory, `.credentials-${randomUUID()}.json`)
+  const temporary = join(directory, `.state-${randomUUID()}.json`)
 
   try {
     await writeFile(temporary, JSON.stringify(value), { mode: 0o600, flag: 'wx' })
-    await rename(temporary, credentials)
+    await rename(temporary, file)
   } catch (e) {
     await unlink(temporary).catch(() => {})
     throw e
+  }
+}
+
+/** A missing, damaged or foreign-service state file reads as absent: these files are only conveniences, never a session */
+async function readState<T>(file: string, schema: z.ZodType<T & { base: string }>): Promise<T | null> {
+  try {
+    const parsed = schema.safeParse(JSON.parse(await readFile(file, 'utf8')))
+
+    return parsed.success && parsed.data.base === base ? parsed.data : null
+  } catch {
+    return null
   }
 }
 
@@ -149,7 +166,24 @@ function openBrowser(url: URL) {
   child.unref()
 }
 
-async function login() {
+type DeviceLogin = { base: string; deviceCode: string; userCode: string; interval: number; deadline: number }
+
+const deviceLoginSchema = z.object({
+  base: z.string(),
+  deviceCode: z.string().min(1).max(512),
+  userCode: z.string().regex(/^[A-Z0-9-]{4,32}$/i),
+  interval: z.number().int().min(1).max(60),
+  deadline: z.number(),
+})
+
+const verificationUrl = (userCode: string) => {
+  const url = new URL('/device', base)
+  url.searchParams.set('user_code', userCode)
+
+  return url
+}
+
+async function startLogin(): Promise<DeviceLogin> {
   // Bounded: a zero interval would poll without pause and a huge expiry would poll forever
   const data = z
     .object({
@@ -160,12 +194,46 @@ async function login() {
     })
     .parse(await request('/api/auth/device/code', 'POST', { client_id: 'giftsofprometheus' }, false))
 
-  const verification = new URL('/device', base)
-  verification.searchParams.set('user_code', data.user_code)
-  console.error(`Open ${verification} and confirm the code ${data.user_code}`)
-  openBrowser(verification)
-  let interval = data.interval ?? 5
-  const deadline = Date.now() + (data.expires_in ?? 900) * 1000
+  openBrowser(verificationUrl(data.user_code))
+
+  return { base, deviceCode: data.device_code, userCode: data.user_code, interval: data.interval ?? 5, deadline: Date.now() + (data.expires_in ?? 900) * 1000 }
+}
+
+const loginPrompt = (device: DeviceLogin) => ({
+  verificationUrl: verificationUrl(device.userCode).href,
+  userCode: device.userCode,
+  expiresIn: Math.max(0, Math.round((device.deadline - Date.now()) / 1000)),
+})
+
+/** Without a flag: start and wait in one run. `--start` returns the link at once so an agent can show it; `--wait` finishes that login */
+async function login(options: { start?: boolean; wait?: boolean }) {
+  if (options.start && options.wait) throw new ApiError('Use either --start or --wait')
+
+  if (options.wait) {
+    const device = await readState(pendingLogin, deviceLoginSchema)
+
+    if (!device) throw new ApiError('No pending login: run giftsofprometheus login --start first')
+
+    return waitLogin(device)
+  }
+
+  const device = await startLogin()
+
+  if (options.start) {
+    await saveJson(pendingLogin, device)
+
+    return loginPrompt(device)
+  }
+
+  console.error(`Open ${verificationUrl(device.userCode)} and confirm the code ${device.userCode}`)
+
+  return waitLogin(device)
+}
+
+async function waitLogin(device: DeviceLogin) {
+  let interval = device.interval
+  const deadline = device.deadline
+  const data = { device_code: device.deviceCode }
 
   while (Date.now() < deadline) {
     await sleep(interval * 1000)
@@ -182,7 +250,8 @@ async function login() {
           )
         )
 
-      await saveCredentials({ base, token: token.access_token })
+      await saveJson(credentials, { base, token: token.access_token })
+      await unlink(pendingLogin).catch(() => {})
 
       return { signedIn: true, expiresIn: token.expires_in }
     } catch (e) {
@@ -198,6 +267,7 @@ async function login() {
     }
   }
 
+  await unlink(pendingLogin).catch(() => {})
   throw new ApiError('Device code expired')
 }
 
@@ -224,7 +294,12 @@ program.configureOutput({
 
 program.name('giftsofprometheus').description('Gifts of Prometheus catalog and personal account').version(version).option('--json', 'machine-readable output')
 
-program.command('login').description('Authorize this CLI in a browser').action(run(login))
+program
+  .command('login')
+  .description('Authorize this CLI in a browser')
+  .option('--start', 'print the confirmation link and code, then exit; finish with login --wait')
+  .option('--wait', 'wait for the confirmation of a login started with --start')
+  .action(run(login))
 
 program
   .command('logout')
@@ -383,6 +458,143 @@ profile
   .option('--remove-interest <topic>', 'remove a topic; repeatable', collect, [])
   .option('--query-text <text>', 'replace the current task; an empty string clears it')
   .action(run(updateProfile))
+
+const draftLevels = z.enum(['interested', 'not_interested'])
+
+const reactions = z.enum(['like', 'dislike'])
+
+type Draft = {
+  base: string
+  draftId: string
+  interests: Array<{ topic: string; level: z.infer<typeof draftLevels> }>
+  /** Talk IDs of the deck in the order shown; card n is deck[n - 1] */
+  deck: number[]
+  reactions: Array<{ talkId: number; reaction: z.infer<typeof reactions> }>
+  queryText?: string
+}
+
+const draftSchema = z.object({
+  base: z.string(),
+  draftId: z.uuid(),
+  interests: z.array(z.object({ topic: z.string(), level: draftLevels })),
+  deck: z.array(z.number().int().positive()),
+  reactions: z.array(z.object({ talkId: z.number().int().positive(), reaction: reactions })),
+  queryText: z.string().optional(),
+})
+
+const card = z.object({ id: z.number().int().positive(), slug: z.string() }).loose()
+
+async function currentDraft(): Promise<Draft> {
+  const draft = await readState(onboardingDraft, draftSchema)
+
+  if (!draft) throw new ApiError('No onboarding draft: run giftsofprometheus onboarding deck first')
+
+  return draft
+}
+
+async function onboardingDeck(o: { interest: string[]; queryText?: string }) {
+  const interests = new Map<string, z.infer<typeof draftLevels>>()
+
+  for (const entry of o.interest) {
+    const [topic, level, ...rest] = entry.split('=')
+    const parsed = draftLevels.safeParse(level)
+
+    if (!topic || rest.length || !parsed.success) throw new ApiError(`Invalid --interest ${printable(entry)}: use topic=interested|not_interested`)
+    interests.set(topic, parsed.data)
+  }
+
+  const draft: Draft = { base, draftId: randomUUID(), interests: [...interests].map(([topic, level]) => ({ topic, level })), deck: [], reactions: [] }
+
+  const { deck } = z.object({ deck: z.array(card) }).parse(await request('/api/knowledge/onboarding/deck', 'POST', { interests: draft.interests }, false))
+
+  await saveJson(onboardingDraft, { ...draft, deck: deck.map(t => t.id), ...(o.queryText?.trim() ? { queryText: o.queryText.trim() } : {}) })
+
+  return { draftId: draft.draftId, deck: deck.map((t, i) => ({ n: i + 1, ...t })) }
+}
+
+// Answers refer to card numbers from `deck`, so an agent can pass the user's reply ("1, 4 yes, 3 no") without looking up IDs
+async function onboardingReact(answers: string[]) {
+  const draft = await currentDraft()
+  const chosen = new Map(draft.reactions.map(r => [r.talkId, r.reaction]))
+
+  for (const answer of answers) {
+    const [number, value, ...rest] = answer.split('=')
+    const talkId = draft.deck[Number(number) - 1]
+    const reaction = reactions.or(z.literal('skip')).safeParse(value)
+
+    if (!/^\d+$/.test(number ?? '') || talkId === undefined || rest.length || !reaction.success)
+      throw new ApiError(`Invalid answer ${printable(answer)}: use <card 1-${draft.deck.length}>=like|dislike|skip`)
+
+    if (reaction.data === 'skip') chosen.delete(talkId)
+    else chosen.set(talkId, reaction.data)
+  }
+
+  const next = { ...draft, reactions: [...chosen].map(([talkId, reaction]) => ({ talkId, reaction })) }
+
+  const { preview } = z
+    .object({ preview: z.array(card.extend({ reason: z.string() })) })
+    .parse(await request('/api/knowledge/onboarding/preview', 'POST', { interests: next.interests, reactions: next.reactions, shownTalkIds: next.deck }, false))
+
+  await saveJson(onboardingDraft, next)
+
+  return {
+    preview,
+    answered: draft.deck.flatMap((id, i) => (chosen.has(id) ? [{ n: i + 1, reaction: chosen.get(id) }] : [])),
+    unanswered: draft.deck.flatMap((id, i) => (chosen.has(id) ? [] : [i + 1])),
+  }
+}
+
+async function onboardingFinish(o: { queryText?: string }) {
+  const draft = await currentDraft()
+
+  if (!(await stored())) throw new ApiError('Not signed in: run giftsofprometheus login, then onboarding finish again. The draft is kept', 401)
+  const queryText = o.queryText?.trim() || draft.queryText
+
+  z.object({ saved: z.literal(true) }).parse(
+    await request('/api/knowledge/onboarding', 'POST', {
+      draftId: draft.draftId,
+      interests: draft.interests,
+      reactions: draft.reactions,
+      ...(queryText ? { queryText } : {}),
+    })
+  )
+
+  await unlink(onboardingDraft).catch(() => {})
+
+  return { saved: true }
+}
+
+const onboarding = program.command('onboarding').description('Build a starting profile: pick topics, judge a deck of talks, save it to the account')
+
+onboarding
+  .command('topics')
+  .description('List topics to match interests against; no account needed')
+  .action(
+    run(async () =>
+      z
+        .object({ topics: z.array(z.object({ slug: z.string(), title: z.string(), section: z.string().nullable() })) })
+        .parse(await request('/api/knowledge/topics', 'GET', undefined, false))
+    )
+  )
+
+onboarding
+  .command('deck')
+  .description('Start a new draft from topic choices and get up to 8 numbered talks to judge; no account needed')
+  .option('--interest <topic=level>', 'set a topic to interested or not_interested; repeatable', collect, [])
+  .option('--query-text <text>', 'what the user is working on now; saved with the draft on finish')
+  .action(run(onboardingDeck))
+
+onboarding
+  .command('react')
+  .description('Judge deck cards by number and get the recommendations they lead to; no account needed')
+  .argument('<answers...>', 'card=like|dislike|skip, e.g. 1=like 3=dislike')
+  .action(run(onboardingReact))
+
+onboarding
+  .command('finish')
+  .description('Save the draft to the signed-in account')
+  .option('--query-text <text>', 'replace the query text kept in the draft')
+  .action(run(onboardingFinish))
 
 program
   .command('feed')
