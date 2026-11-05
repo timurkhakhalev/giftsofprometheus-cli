@@ -41,7 +41,7 @@ Do not hard-wrap prose in Markdown. Do not use emojis.
 The README is in Russian and also brings readers to the site. Keep it so:
 
 - Every link to giftsofprometheus.com carries `utm_source=github&utm_medium=readme&utm_campaign=cli`.
-- The conference and topic links in «Что есть в каталоге» use the site's catalog filters (`/?event=<slug>`, `/?topic=<slug>`). When the catalog gains a conference or the taxonomy changes, update them and check that each link opens a non-empty list.
+- The conference and topic links in «Что есть в каталоге» point to the site's landing pages (`/events/<slug>`, `/topics/<slug>`). When the catalog gains a conference or the taxonomy changes, update them and check that each link opens a non-empty list.
 - Numbers about the catalog (talk counts) are approximate and must not exceed what the site shows.
 
 ## Releasing
