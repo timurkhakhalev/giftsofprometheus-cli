@@ -79,6 +79,15 @@ npx skills add timurkhakhalev/giftsofprometheus-cli
 
 По инструкции skill агент меняет избранное и интересы только по вашей просьбе. Поиск и чтение ничего не сохраняют, не лайкают и не скрывают.
 
+## Обновления
+
+Установленный через npm CLI раз в сутки проверяет, не вышла ли новая версия, и после команды пишет в stderr строку `Update: …` с командой обновления. Запуски через `npx` не проверяются: они и так берут последнюю версию. Отключить проверку: `GIFTSOFPROMETHEUS_NO_UPDATE_CHECK=1` (в CI она выключена сама).
+
+Так же раз в сутки CLI находит установленные копии skill в `.agents`, `.claude`, `.codex` и `.cursor` (в домашней папке и в текущем проекте) и сравнивает их по хешу с выпущенными версиями. Строка `description` при сравнении не учитывается, поэтому своё описание не мешает.
+
+- `giftsofprometheus doctor` показывает версию CLI и статус каждой копии: `current`, `outdated`, `modified` (правили вручную) или `linked` (ссылка на папку из пакета).
+- `giftsofprometheus skill update` заменяет устаревшие копии и сохраняет ваше описание. Копии, которые правили вручную, заменяются только с `--force`.
+
 ## Что есть в каталоге
 
 **Конференции:** [AI Engineer World's Fair 2026](https://giftsofprometheus.com/events/ai-engineer-world-s-fair-2026?utm_source=github&utm_medium=readme&utm_campaign=cli), [AI Engineer World's Fair 2025](https://giftsofprometheus.com/events/ai-engineer-world-s-fair-2025?utm_source=github&utm_medium=readme&utm_campaign=cli), [AI Engineer Europe 2026](https://giftsofprometheus.com/events/ai-engineer-europe-2026?utm_source=github&utm_medium=readme&utm_campaign=cli), [AI Engineer World's Fair 2024](https://giftsofprometheus.com/events/ai-engineer-world-s-fair-2024?utm_source=github&utm_medium=readme&utm_campaign=cli), [AI Engineer Code 2025](https://giftsofprometheus.com/events/ai-engineer-code-2025?utm_source=github&utm_medium=readme&utm_campaign=cli), [AI Engineer Summit 2025](https://giftsofprometheus.com/events/ai-engineer-summit-2025?utm_source=github&utm_medium=readme&utm_campaign=cli), [AI Engineer Summit 2023](https://giftsofprometheus.com/events/ai-engineer-summit-2023?utm_source=github&utm_medium=readme&utm_campaign=cli), [BAAI Conference 2026 · 北京智源大会](https://giftsofprometheus.com/events/baai-conference-2026?utm_source=github&utm_medium=readme&utm_campaign=cli), [Apsara Conference 2026 · 云栖大会](https://giftsofprometheus.com/events/apsara-conference-2026?utm_source=github&utm_medium=readme&utm_campaign=cli).

@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 import { z } from 'zod'
 import { Command } from 'commander'
-import { chmod, lstat, mkdir, readFile, rename, writeFile, unlink } from 'node:fs/promises'
+import { chmod, lstat, mkdir, readFile, realpath, rename, stat, writeFile, unlink } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { isAbsolute, join } from 'node:path'
 import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
+import { mergeSkill, newerVersion, skillHash } from './skill-files.js'
 
 const { version } = z.object({ version: z.string() }).parse(createRequire(import.meta.url)('../package.json'))
 
@@ -30,6 +31,9 @@ const pendingLogin = join(directory, 'login.json')
 
 // The onboarding draft lives outside the project next to the session, so it survives `login` between `deck` and `finish`
 const onboardingDraft = join(directory, 'onboarding.json')
+
+// When the daily update check last ran and what npm reported then
+const updateState = join(directory, 'update.json')
 
 type Credentials = { base: string; token: string }
 
@@ -74,7 +78,7 @@ class ApiError extends Error {
 const printable = (value: string) => value.replace(/[\u0000-\u001f\u007f-\u009f]/g, '')
 
 // A fresh 0600 file renamed into place: a secret never lands in an existing file with loose permissions or behind a symlink
-async function saveJson(file: string, value: Credentials | DeviceLogin | Draft) {
+async function saveJson(file: string, value: Credentials | DeviceLogin | Draft | UpdateState) {
   await mkdir(directory, { recursive: true, mode: 0o700 })
   const info = await lstat(directory)
 
@@ -151,6 +155,175 @@ function run<Args extends unknown[]>(fn: (...args: Args) => Promise<unknown>) {
       process.exitCode = 1
     }
   }
+}
+
+const packageRoot = fileURLToPath(new URL('../', import.meta.url))
+
+const bundledSkill = join(packageRoot, 'skills', 'giftsofprometheus')
+
+// Installed from npm (global or a project dependency), not a one-off npx, pnpm dlx or bunx run and not a source checkout:
+// only then is there an installed version to update
+const installed = /[\\/]node_modules[\\/]/.test(packageRoot) && !/[\\/](_npx|dlx|bunx-[^\\/]*)[\\/]/.test(packageRoot)
+
+const DAY_MS = 24 * 60 * 60 * 1000
+
+type UpdateState = { base: string; checkedAt: number; latest: string | null }
+
+const updateStateSchema = z.object({ base: z.string(), checkedAt: z.number(), latest: z.string().nullable() })
+
+const historySchema = z.array(z.object({ version: z.string(), hash: z.string(), description: z.string().nullable() }))
+
+const updateCommand = /[\\/]pnpm[\\/]global[\\/]/.test(packageRoot)
+  ? 'pnpm add -g @giftsofprometheus/cli@latest'
+  : /[\\/]\.bun[\\/]install[\\/]global[\\/]/.test(packageRoot)
+    ? 'bun add -g @giftsofprometheus/cli@latest'
+    : 'npm install -g @giftsofprometheus/cli@latest'
+
+const shortPath = (path: string) => (path.startsWith(homedir()) ? '~' + path.slice(homedir().length) : path)
+
+async function fetchLatest(): Promise<string | null> {
+  try {
+    const response = await fetch('https://registry.npmjs.org/@giftsofprometheus/cli/latest', {
+      headers: { Accept: 'application/json', 'User-Agent': `giftsofprometheus/${version}` },
+      redirect: 'error',
+      signal: AbortSignal.timeout(1500),
+    })
+
+    if (!response.ok) return null
+    const parsed = z.object({ version: z.string().regex(/^\d+\.\d+\.\d+/) }).safeParse(await response.json())
+
+    return parsed.success ? parsed.data.version : null
+  } catch {
+    return null
+  }
+}
+
+/** The latest npm version, asked at most once a day; `fresh` is true when this call asked npm */
+async function latestVersion(force = false): Promise<{ latest: string | null; fresh: boolean }> {
+  const state = await readState(updateState, updateStateSchema)
+
+  if (!force && state && Date.now() - state.checkedAt < DAY_MS) return { latest: state.latest, fresh: false }
+  // npx and source runs never ask npm: they already run the version that was asked for
+  const latest = installed ? ((await fetchLatest()) ?? state?.latest ?? null) : null
+
+  // A failed check also counts, so an offline machine does not wait for npm on every run
+  await saveJson(updateState, { base, checkedAt: Date.now(), latest }).catch(() => {})
+
+  return { latest, fresh: true }
+}
+
+type SkillStatus = 'current' | 'outdated' | 'modified' | 'linked'
+
+// Where agents and `npx skills add` keep personal and project skills
+function skillDirectories() {
+  const roots = [homedir(), process.cwd()]
+  const homes = [process.env.CLAUDE_CONFIG_DIR, process.env.CODEX_HOME].filter((value): value is string => Boolean(value && isAbsolute(value)))
+
+  return [
+    ...roots.flatMap(root => ['.agents', '.claude', '.codex', '.cursor'].map(agent => join(root, agent, 'skills', 'giftsofprometheus'))),
+    ...homes.map(home => join(home, 'skills', 'giftsofprometheus')),
+  ]
+}
+
+async function skillHistory() {
+  return historySchema.parse(JSON.parse(await readFile(join(packageRoot, 'skills', 'history.json'), 'utf8')))
+}
+
+/**
+ * Installed copies of the skill, each once even when several agent folders link to it.
+ * The description line is not compared: a custom one, or a personal tail, does not make a copy outdated.
+ */
+async function installedSkills(): Promise<Array<{ path: string; file: string; status: SkillStatus; version: string | null }>> {
+  const bundled = await realpath(bundledSkill)
+  const current = skillHash(await readFile(join(bundled, 'SKILL.md'), 'utf8'))
+  const history = await skillHistory()
+  const seen = new Set<string>()
+  const found = []
+
+  for (const folder of skillDirectories()) {
+    let real: string
+
+    try {
+      real = await realpath(folder)
+    } catch {
+      continue
+    }
+
+    if (seen.has(real)) continue
+    seen.add(real)
+
+    if (real === bundled) {
+      found.push({ path: shortPath(folder), file: join(real, 'SKILL.md'), status: 'linked' as const, version })
+      continue
+    }
+
+    let text: string
+
+    try {
+      text = await readFile(join(real, 'SKILL.md'), 'utf8')
+    } catch {
+      continue
+    }
+
+    const hash = skillHash(text)
+    const known = history.findLast(entry => entry.hash === hash)
+    const status: SkillStatus = hash === current ? 'current' : known ? 'outdated' : 'modified'
+
+    found.push({ path: shortPath(folder), file: join(real, 'SKILL.md'), status, version: known?.version ?? null })
+  }
+
+  return found
+}
+
+async function updateSkills(force: boolean) {
+  const bundled = await readFile(join(bundledSkill, 'SKILL.md'), 'utf8')
+  const stock = (await skillHistory()).flatMap(entry => (entry.description ? [entry.description] : []))
+  const updated = []
+  const unchanged = []
+
+  for (const skill of await installedSkills()) {
+    if (skill.status !== 'outdated' && !(force && skill.status === 'modified')) {
+      unchanged.push({ path: skill.path, status: skill.status })
+      continue
+    }
+
+    const text = mergeSkill(bundled, await readFile(skill.file, 'utf8'), stock)
+    const temporary = `${skill.file}.${randomUUID()}.tmp`
+
+    try {
+      await writeFile(temporary, text, { mode: (await stat(skill.file)).mode & 0o777, flag: 'wx' })
+      await rename(temporary, skill.file)
+    } catch (e) {
+      await unlink(temporary).catch(() => {})
+      throw e
+    }
+
+    updated.push({ path: skill.path, from: skill.version })
+  }
+
+  return { version, updated, unchanged }
+}
+
+const updateCheckDisabled = () => Boolean(process.env.GIFTSOFPROMETHEUS_NO_UPDATE_CHECK || process.env.CI)
+
+/** Once a day, after a command: a line on stderr when the CLI or an installed skill is behind. Never fails the command */
+async function updateNotice() {
+  if (updateCheckDisabled()) return
+
+  try {
+    const { latest, fresh } = await latestVersion()
+
+    if (!fresh) return
+    const lines = []
+
+    if (installed && latest && newerVersion(latest, version))
+      lines.push(`Update: giftsofprometheus ${latest} is available (installed ${version}). Run: ${updateCommand}`)
+
+    for (const skill of await installedSkills())
+      if (skill.status === 'outdated') lines.push(`Update: the agent skill in ${skill.path} is older than this CLI. Run: giftsofprometheus skill update`)
+
+    if (lines.length) console.error(lines.join('\n'))
+  } catch {}
 }
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
@@ -357,12 +530,18 @@ program
         }
       } catch {}
 
+      const latest = installed && !updateCheckDisabled() ? (await latestVersion(true)).latest : null
+      const skills = await installedSkills().catch(() => [])
+
       return {
         base,
         reachable,
         authenticated,
         authSource: credential ? 'config' : 'missing',
         configPath: credentials,
+        // `installed: false` for npx and source runs: they already use the version they asked for
+        update: { installed, current: version, latest, available: Boolean(installed && latest && newerVersion(latest, version)), command: updateCommand },
+        skills: skills.map(skill => ({ path: skill.path, status: skill.status, version: skill.version })),
         nextStep: !reachable ? 'Check GIFTSOFPROMETHEUS_URL and server availability' : !authenticated ? 'Run giftsofprometheus login' : null,
       }
     })
@@ -632,19 +811,34 @@ program
   .argument('<path>')
   .action(run((path: string) => request(path)))
 
-program
+const skill = program
   .command('skill')
   .description('Print the agent skill that matches this CLI version')
   .option('--path', 'print the skill directory instead, for linking into an agent')
   .action(async (options: { path?: boolean }) => {
-    const skill = fileURLToPath(new URL('../skills/giftsofprometheus/', import.meta.url))
-    process.stdout.write(options.path ? `${skill}\n` : await readFile(join(skill, 'SKILL.md'), 'utf8'))
+    process.stdout.write(options.path ? `${bundledSkill}/\n` : await readFile(join(bundledSkill, 'SKILL.md'), 'utf8'))
   })
 
-program.parseAsync().catch(e => {
-  if (e.code === 'commander.helpDisplayed' || e.code === 'commander.version') return
+skill
+  .command('update')
+  .description('Replace installed copies of the skill that are older than this CLI; a custom description is kept')
+  .option('--force', 'also replace copies that were edited by hand')
+  .action(run((options: { force?: boolean }) => updateSkills(Boolean(options.force))))
 
-  if (program.opts().json) console.log(JSON.stringify({ error: { message: e.message, status: 1 } }))
-  else if (!e.code?.startsWith('commander.')) console.error(printable(String(e.message)))
-  process.exitCode = 1
+// The daily check runs after the command, so it never delays or breaks its output; doctor and skill report the same state themselves
+let skipNotice = false
+
+program.hook('preAction', (_, action) => {
+  skipNotice = action.name() === 'doctor' || action.name() === 'skill' || action.parent?.name() === 'skill'
 })
+
+program
+  .parseAsync()
+  .then(() => (skipNotice ? undefined : updateNotice()))
+  .catch(e => {
+    if (e.code === 'commander.helpDisplayed' || e.code === 'commander.version') return
+
+    if (program.opts().json) console.log(JSON.stringify({ error: { message: e.message, status: 1 } }))
+    else if (!e.code?.startsWith('commander.')) console.error(printable(String(e.message)))
+    process.exitCode = 1
+  })

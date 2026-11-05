@@ -1,6 +1,6 @@
 {
   "name": "@giftsofprometheus/cli",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Search AI conference talks, read transcripts, and manage your Gifts of Prometheus favorites from the shell or an AI agent",
   "keywords": [
     "agents",
@@ -36,6 +36,7 @@
     "format:fix": "oxfmt --write .",
     "test": "pnpm build && node --test tests/*.test.mjs",
     "check": "pnpm lint && pnpm format && pnpm typecheck && pnpm test:quality && pnpm test",
+    "skill-history": "node tools/skill-history/update.ts",
     "test:quality": "node --test tools/typescript-quality/verify.test.mjs",
     "prepublishOnly": "pnpm check"
   },

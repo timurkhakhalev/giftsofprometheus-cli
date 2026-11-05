@@ -14,6 +14,7 @@ Run `command -v giftsofprometheus`. If it is missing, run every command below as
 
 - `reachable: false`: the service is unavailable; report it and stop.
 - `authenticated: false`: search, talk metadata and onboarding still work. Sign in only when a command needs it (see Sign in).
+- `update.available: true`, a skill in `skills` with `status: "outdated"`, or a line starting with `Update:` on stderr of any command: tell the user in one line and offer to update. Run `update.command` or `giftsofprometheus skill update` only after they agree, then continue the task. A skill with `status: "modified"` was edited by hand: do not offer to replace it.
 
 ## Sign in
 

@@ -29,7 +29,7 @@ async function harness(handler) {
   const cli = (args, { json = true, env = {}, cwd } = {}) =>
     new Promise((resolve, reject) => {
       const child = spawn(process.execPath, [executable, ...(json ? ['--json'] : []), ...args], {
-        env: { ...process.env, GIFTSOFPROMETHEUS_URL: base, XDG_CONFIG_HOME: config, PATH: '', ...env },
+        env: { ...process.env, GIFTSOFPROMETHEUS_URL: base, XDG_CONFIG_HOME: config, PATH: '', GIFTSOFPROMETHEUS_NO_UPDATE_CHECK: '1', ...env },
         timeout: 15000,
         cwd,
       })
