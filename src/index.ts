@@ -3,12 +3,12 @@ import { z } from 'zod'
 import { Command } from 'commander'
 import { chmod, lstat, mkdir, readFile, realpath, rename, stat, writeFile, unlink } from 'node:fs/promises'
 import { homedir } from 'node:os'
-import { isAbsolute, join } from 'node:path'
+import { basename, isAbsolute, join, resolve } from 'node:path'
 import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
-import { mergeSkill, newerVersion, skillHash } from './skill-files.js'
+import { mergeSkill, newerVersion, personalDescription, skillDescription, skillHash, tailTopics } from './skill-files.js'
 
 const { version } = z.object({ version: z.string() }).parse(createRequire(import.meta.url)('../package.json'))
 
@@ -476,7 +476,7 @@ function recIdQuery(recId: string | undefined) {
   return recId === undefined ? '' : `?recId=${encodeURIComponent(recIdOption.parse(recId))}`
 }
 
-async function event(talk: string, type: 'bookmark' | 'unbookmark', recId?: string) {
+async function event(talk: string, type: 'bookmark' | 'unbookmark' | 'like' | 'dislike' | 'not_interested' | 'clear_reaction', recId?: string) {
   const item = await resolveTalk(talk)
   // With a recId the service takes the context from that list; `similar` only passes its check
   const source = recId === undefined ? { context: 'talk_page' } : { context: 'similar', recId: recIdOption.parse(recId) }
@@ -665,6 +665,22 @@ talks
       if (result.recId) console.error(`Next: open one with ${launcher} talks content <slug> --rec-id ${result.recId}`)
 
       return result
+    })
+  )
+
+const reactionTypes = { like: 'like', dislike: 'dislike', 'not-interested': 'not_interested', clear: 'clear_reaction' } as const
+
+talks
+  .command('react')
+  .description('Record what the user said about a talk: like, dislike, not-interested or clear')
+  .argument('<slug-or-id>')
+  .argument('<reaction>', Object.keys(reactionTypes).join(' | '))
+  .option('--rec-id <recId>', 'recId of the list the talk came from')
+  .action(
+    run(async (id: string, reaction: string, options: { recId?: string }) => {
+      const type = z.enum(['like', 'dislike', 'not-interested', 'clear']).parse(reaction)
+
+      return event(id, reactionTypes[type], options.recId)
     })
   )
 
@@ -912,6 +928,82 @@ skill
   .description('Replace installed copies of the skill that are older than this CLI; a custom description is kept')
   .option('--force', 'also replace copies that were edited by hand')
   .action(run((options: { force?: boolean }) => updateSkills(Boolean(options.force))))
+
+const profileTopics = z.object({
+  interests: z.array(z.object({ topic: z.string().optional(), level: z.enum(['high', 'interested', 'not_interested']) })),
+  topics: z.array(z.object({ slug: z.string(), title: z.string(), section: z.string().nullable() })),
+})
+
+/** Titles of the user's topics for the skill tail: strong interests first, subtopics before whole sections */
+async function personalTopics(): Promise<string[]> {
+  const profile = profileTopics.parse(await request('/api/knowledge/profile'))
+  const bySlug = new Map(profile.topics.map(t => [t.slug, t]))
+
+  return profile.interests
+    .flatMap(i => {
+      const topic = i.topic === undefined ? undefined : bySlug.get(i.topic)
+
+      return topic && i.level !== 'not_interested' ? [{ title: topic.title, order: (i.level === 'high' ? 0 : 2) + (topic.section ? 0 : 1) }] : []
+    })
+    .sort((a, b) => a.order - b.order)
+    .map(t => t.title)
+}
+
+// A command the user can paste into their own terminal, where the file may be writable
+const shellQuote = (value: string) => `'${value.replaceAll("'", `'\\''`)}'`
+
+/**
+ * Adds the user's topics to the description of the skill copy the agent loaded, so the agent reaches for it on them too.
+ * Only a SKILL.md of this skill is changed; a copy that cannot be written is reported with a command for the user.
+ */
+async function personalizeSkill(o: { file: string }) {
+  const given = resolve(o.file)
+  const file = basename(given) === 'SKILL.md' ? given : join(given, 'SKILL.md')
+  let text: string
+
+  try {
+    text = await readFile(file, 'utf8')
+  } catch {
+    throw new ApiError(`No skill file at ${file}`)
+  }
+
+  if (!/^---\r?\nname: giftsofprometheus\r?\n/.test(text)) throw new ApiError(`${file} is not the giftsofprometheus skill`)
+  const line = skillDescription(text)
+
+  if (!line) throw new ApiError(`${file} has no description line`)
+  const topics = tailTopics(await personalTopics())
+  const next = personalDescription(line, topics)
+
+  if (next === line) return { personalized: true, changed: false, path: file, topics }
+  const temporary = `${file}.${randomUUID()}.tmp`
+
+  try {
+    await writeFile(
+      temporary,
+      text.replace(/\r\n/g, '\n').replace(line, () => next),
+      { mode: (await stat(file)).mode & 0o777, flag: 'wx' }
+    )
+    await rename(temporary, file)
+  } catch (e) {
+    await unlink(temporary).catch(() => {})
+
+    return {
+      personalized: false,
+      path: file,
+      topics,
+      reason: e instanceof Error ? e.message : 'Write failed',
+      command: `${launcher} skill personalize --file ${shellQuote(file)}`,
+    }
+  }
+
+  return { personalized: true, changed: true, path: file, topics }
+}
+
+skill
+  .command('personalize')
+  .description("Add the user's topics (ten words at most) to the description of the skill copy at --file; requires login")
+  .requiredOption('--file <path>', 'SKILL.md of the loaded skill, or its folder')
+  .action(run(personalizeSkill))
 
 // The daily check runs after the command, so it never delays or breaks its output; doctor and skill report the same state themselves
 let skipNotice = false

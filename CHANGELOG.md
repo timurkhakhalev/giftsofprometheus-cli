@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.0
+
+- `talks react <slug-or-id> like|dislike|not-interested|clear [--rec-id]` records what the user said about a talk.
+- `skill personalize --file <SKILL.md>` adds the user's topics, ten words at most, to the description of that skill copy ("Also good for …"). Only a SKILL.md of this skill is changed, atomically. When the file cannot be written, the output has `personalized: false` and a `command` the user can run themselves.
+- `skill update` keeps the personal tail: a shipped description with a tail becomes the new shipped description with the same tail.
+- Skill: once per conversation, after two or more transcripts, the agent asks which talks hit the mark and records the answers. After onboarding or an interest change it personalizes its own description and says so in a few words.
+- Skill: reactions and favorites take the `recId` of any list the talk came from, including `ask` passages; opening a talk from `ask` counts toward the feedback question.
+
 ## 0.4.0
 
 - `ask <query> [--q <query>] [--limit n] [--per-talk n]` searches talk passages and returns citations and timecoded URLs; requires sign-in and the service endpoint `GET /api/knowledge/passages`.

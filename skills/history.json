@@ -43,5 +43,10 @@
     "version": "0.4.0",
     "hash": "2beae7a9ece869e0",
     "description": "description: Find AI conference talks (AI Engineer, BAAI, Apsara and others) with Russian summaries, read their full transcripts, and manage the signed-in user's favorites, interests and personal feed through the giftsofprometheus CLI, and build a starting profile in the chat. Use when the user asks for talks, speakers or transcripts on an AI engineering topic, or wants to save, list or remove favorites on Gifts of Prometheus."
+  },
+  {
+    "version": "0.5.0",
+    "hash": "d67f041ffd94e30e",
+    "description": "description: Find AI conference talks (AI Engineer, BAAI, Apsara and others) with Russian summaries, read their full transcripts, and manage the signed-in user's favorites, interests and personal feed through the giftsofprometheus CLI, and build a starting profile in the chat. Use when the user asks for talks, speakers or transcripts on an AI engineering topic, or wants to save, list or remove favorites on Gifts of Prometheus."
   }
 ]

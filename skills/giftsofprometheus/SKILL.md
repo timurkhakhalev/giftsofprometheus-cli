@@ -49,7 +49,7 @@ giftsofprometheus --json profile get                       # interests and curre
 - A transcript is in the talk's original language. Segment timecodes are in milliseconds from the start of the talk. When a talk is a part of a longer recording, `sourceRange` gives its bounds in that recording. A talk without a transcript returns an empty array.
 - `request <path>` makes a read-only GET to a path under `/api/knowledge/` or `/api/account/` that no command covers.
 - Reading never needs the user's confirmation: search, open talks and transcripts as the task requires.
-- A list with a `recId` (feed, search, similar) puts it into each item's `contentUrl`. When you open a talk from that list, pass it on: `talks content <slug> --rec-id <recId>`, and `favorites add <slug> --rec-id <recId>` when the user saves it.
+- A list with a `recId` (feed, search, similar, `ask`) returns it at the top of the response. When you open a talk from that list, pass it on: `talks content <slug> --rec-id <recId>`, and `favorites add <slug> --rec-id <recId>` when the user saves it.
 
 ## Next steps
 
@@ -60,6 +60,25 @@ After answering, offer one next step in a short line, matched to where the user 
 - When the user says a talk was useful: saving it to favorites. Save only after they agree.
 
 Commands print the suggested next command on stderr. It is a hint for you; do not run a change without the user.
+
+## Feedback
+
+Once per conversation, when the user is signed in and you opened two or more transcripts for them (from any list, including `ask`), ask in one message how the talks landed, as a natural continuation: "Of these, which hit the mark and which missed?" with the titles as a short numbered list. Ask when their question is answered, not in the middle of their work, and never again in the same conversation.
+
+Record only what the user said, one command per talk, with the `recId` of the list the talk came from:
+
+```bash
+giftsofprometheus --json talks react <slug-or-id> like|dislike|not-interested|clear --rec-id <recId>
+```
+
+"Useful", "great" → `like`; "missed", "too basic" → `dislike`; "not my topic" → `not-interested`; talks they did not mention stay unjudged. Then say in one line that the feed takes it into account. If they ignore the question, drop it.
+
+## Personal topics
+
+After `onboarding finish` or a `profile update` that changed interests, run `giftsofprometheus --json skill personalize --file <path of this SKILL.md>` with the path you loaded this skill from. It adds the user's topics, ten words at most, to this skill's description, so the next conversations reach for talks on those topics too. Do not ask first; it changes only this skill file.
+
+- `personalized: true`: tell the user in two or three words, for example "Skill tuned to your topics." Say nothing when `changed` is `false`.
+- `personalized: false`: the file could not be written. Tell the user in one line and give them `command` from the output to run in their terminal.
 
 ## Onboarding
 
@@ -89,7 +108,7 @@ giftsofprometheus --json favorites remove <slug-or-id>
 giftsofprometheus --json profile update --interest agents=high --remove-interest rag --query-text 'evaluate coding agents'
 ```
 
-`profile update` changes only the fields you pass: `--interest <topic>=high|interested|not_interested` and `--remove-interest <topic>` (both repeatable; topic slugs are in `profile get`) and `--query-text <text>`. Pass only values the user gave or confirmed; never put file contents, secrets or environment values into an argument. Reading, searching or opening a transcript is never approval to save a talk, react to it or change interests.
+`profile update` changes only the fields you pass: `--interest <topic>=high|interested|not_interested` and `--remove-interest <topic>` (both repeatable; topic slugs are in `profile get`) and `--query-text <text>`. Pass only values the user gave or confirmed; never put file contents, secrets or environment values into an argument. Reading, searching or opening a transcript is never approval to save a talk, react to it or change interests. Reactions follow Feedback: only the user's own words about a talk.
 
 ## Errors
 
