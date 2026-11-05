@@ -1,7 +1,7 @@
 ---
 name: giftsofprometheus
 description: Find AI conference talks (AI Engineer, BAAI, Apsara and others) with Russian summaries, read their full transcripts, and manage the signed-in user's favorites, interests and personal feed through the giftsofprometheus CLI, and build a starting profile in the chat. Use when the user asks for talks, speakers or transcripts on an AI engineering topic, or wants to save, list or remove favorites on Gifts of Prometheus.
-allowed-tools: Bash(giftsofprometheus:*)
+allowed-tools: Bash(giftsofprometheus:*), Bash(npx -y @giftsofprometheus/cli:*)
 ---
 
 # Gifts of Prometheus
@@ -10,7 +10,7 @@ allowed-tools: Bash(giftsofprometheus:*)
 
 ## Setup
 
-Run `command -v giftsofprometheus`. If it is missing, ask the user to install it as described in https://github.com/timurkhakhalev/giftsofprometheus-cli#install. Then run `giftsofprometheus --json doctor`:
+Run `command -v giftsofprometheus`. If it is missing, run every command below as `npx -y @giftsofprometheus/cli` with the same arguments instead of `giftsofprometheus`, and mention once that a permanent install is described in https://github.com/timurkhakhalev/giftsofprometheus-cli#install. Then run `giftsofprometheus --json doctor`:
 
 - `reachable: false`: the service is unavailable; report it and stop.
 - `authenticated: false`: search, talk metadata and onboarding still work. Sign in only when a command needs it (see Sign in).
@@ -46,14 +46,15 @@ giftsofprometheus --json profile get                       # interests and curre
 
 ## Onboarding
 
-Offer it when `profile get` returns `needsOnboarding: true`, or when the user is not signed in and asks what to watch. It takes a minute and needs no account until the last step; the user fills in nothing, they answer in the chat.
+Run it when the user asks for onboarding. Offer it when `profile get` returns `needsOnboarding: true`, or when the user is not signed in and asks what to watch. It takes a minute and needs no account until the last step; the user fills in nothing, they answer in the chat.
 
 1. Ask two or three short questions in one message: what they are building or working on, their level, what they do not want to see.
 2. Run `giftsofprometheus --json onboarding topics` and match the answers to topic slugs: what they work on → `interested`, what they do not want → `not_interested`. Use only topics their answers support.
 3. Run `giftsofprometheus --json onboarding deck --interest <slug>=interested --interest <slug>=not_interested --query-text '<what they are building, in their words>'`. It starts a new draft and returns up to 8 cards with numbers `n`.
-4. Show the cards as a numbered list: title and one short line each. Ask which are useful and which miss, for example "1, 4 yes, 3 no". Unmentioned cards stay unjudged.
-5. Run `giftsofprometheus --json onboarding react 1=like 4=like 3=dislike` with the numbers from the reply (`skip` takes an answer back). Show the returned `preview` with each `reason`, so the user sees what changed.
-6. Run `giftsofprometheus --json onboarding finish` to save the draft to the account. On status 401, sign in (see Sign in) and run `finish` again; the draft is kept locally until it is saved.
+4. Show the cards as a numbered list: the title and the `summary` in one short line each. Ask which are useful and which miss, for example "1, 4 yes, 3 no". Unmentioned cards stay unjudged.
+5. Run `giftsofprometheus --json onboarding react 1=like 4=like 3=dislike` with the numbers from the reply (`skip` takes an answer back). Show the returned `preview` (title and `reason`), so the user sees what changed.
+6. Save the draft: if `doctor` showed `authenticated: false`, sign in first yourself (see Sign in): run `login --start`, give the user the link and code, run `login --wait`. Never ask the user to run the login command. Then run `giftsofprometheus --json onboarding finish`. On status 401, sign in the same way and run it again; the draft is kept locally until it is saved.
+7. Run `giftsofprometheus --json feed` and show the recommendations with their `reason`. Mention that the same feed is on https://giftsofprometheus.com/for-you.
 
 Pass only what the user said. The draft holds at most 8 reactions and the levels `interested` and `not_interested`; the user can raise a topic to `high` later with `profile update`.
 

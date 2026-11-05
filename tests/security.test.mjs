@@ -193,13 +193,23 @@ test('onboarding keeps a local draft, answers by card number and saves it only a
       response.end(
         JSON.stringify({
           deck: [
-            { id: 11, slug: 'a', title: 'A' },
-            { id: 12, slug: 'b' },
-            { id: 13, slug: 'c' },
+            {
+              id: 11,
+              slug: 'a',
+              title: 'A',
+              description: 'Short.\n\n- **Long** bullet',
+              speakers: [{ id: 1, name: 'Ann', slug: 'ann' }],
+              topics: [{ slug: 'agents', title: 'Agents' }],
+              event: { name: 'Conf', year: 2026 },
+              contentUrl: '/x',
+            },
+            { id: 12, slug: 'b', title: 'B' },
+            { id: 13, slug: 'c', title: 'C' },
           ],
         })
       )
-    else if (request.url === '/api/knowledge/onboarding/preview') response.end(JSON.stringify({ preview: [{ id: 20, slug: 'd', reason: 'r' }], next: null }))
+    else if (request.url === '/api/knowledge/onboarding/preview')
+      response.end(JSON.stringify({ preview: [{ id: 20, slug: 'd', title: 'D', reason: 'r' }], next: null }))
     else if (request.url === '/api/knowledge/onboarding') response.end(JSON.stringify({ saved: true }))
     else response.end(JSON.stringify({ error: 'unexpected' }))
   })
@@ -216,13 +226,14 @@ test('onboarding keeps a local draft, answers by card number and saves it only a
     assert.equal(deck.code, 0, deck.stdout)
     const started = JSON.parse(deck.stdout)
     assert.deepEqual(
-      started.deck.map(c => [c.n, c.id]),
+      started.deck.map(c => [c.n, c.slug]),
       [
-        [1, 11],
-        [2, 12],
-        [3, 13],
+        [1, 'a'],
+        [2, 'b'],
+        [3, 'c'],
       ]
     )
+    assert.deepEqual(started.deck[0], { n: 1, slug: 'a', title: 'A', summary: 'Short.', speakers: ['Ann'], topics: ['Agents'], event: 'Conf' })
     assert.deepEqual(h.requests.at(-1).body, {
       interests: [
         { topic: 'agents', level: 'interested' },

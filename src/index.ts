@@ -482,7 +482,27 @@ const draftSchema = z.object({
   queryText: z.string().optional(),
 })
 
-const card = z.object({ id: z.number().int().positive(), slug: z.string() }).loose()
+const card = z.object({
+  id: z.number().int().positive(),
+  slug: z.string(),
+  title: z.string(),
+  description: z.string().nullish(),
+  speakers: z.array(z.object({ name: z.string() })).default([]),
+  topics: z.array(z.object({ title: z.string() })).default([]),
+  event: z.object({ name: z.string() }).nullish(),
+})
+
+// A card keeps what an agent shows in a list: the summary's first paragraph, without the bullets, links and media fields
+function brief(t: z.infer<typeof card>) {
+  return {
+    slug: t.slug,
+    title: t.title,
+    summary: t.description?.split(/\n\s*\n/)[0]?.trim() ?? null,
+    speakers: t.speakers.map(s => s.name),
+    topics: t.topics.map(s => s.title),
+    event: t.event?.name ?? null,
+  }
+}
 
 async function currentDraft(): Promise<Draft> {
   const draft = await readState(onboardingDraft, draftSchema)
@@ -509,7 +529,7 @@ async function onboardingDeck(o: { interest: string[]; queryText?: string }) {
 
   await saveJson(onboardingDraft, { ...draft, deck: deck.map(t => t.id), ...(o.queryText?.trim() ? { queryText: o.queryText.trim() } : {}) })
 
-  return { draftId: draft.draftId, deck: deck.map((t, i) => ({ n: i + 1, ...t })) }
+  return { draftId: draft.draftId, deck: deck.map((t, i) => ({ n: i + 1, ...brief(t) })) }
 }
 
 // Answers refer to card numbers from `deck`, so an agent can pass the user's reply ("1, 4 yes, 3 no") without looking up IDs
@@ -538,7 +558,7 @@ async function onboardingReact(answers: string[]) {
   await saveJson(onboardingDraft, next)
 
   return {
-    preview,
+    preview: preview.map(t => ({ ...brief(t), reason: t.reason })),
     answered: draft.deck.flatMap((id, i) => (chosen.has(id) ? [{ n: i + 1, reaction: chosen.get(id) }] : [])),
     unanswered: draft.deck.flatMap((id, i) => (chosen.has(id) ? [] : [i + 1])),
   }
@@ -547,7 +567,11 @@ async function onboardingReact(answers: string[]) {
 async function onboardingFinish(o: { queryText?: string }) {
   const draft = await currentDraft()
 
-  if (!(await stored())) throw new ApiError('Not signed in: run giftsofprometheus login, then onboarding finish again. The draft is kept', 401)
+  if (!(await stored()))
+    throw new ApiError(
+      'Not signed in: run giftsofprometheus login --start, give the user the link, run login --wait, then onboarding finish again. The draft is kept',
+      401
+    )
   const queryText = o.queryText?.trim() || draft.queryText
 
   z.object({ saved: z.literal(true) }).parse(

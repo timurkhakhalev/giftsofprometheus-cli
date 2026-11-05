@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1
+
+- Skill: without an installed CLI the agent runs the same commands through `npx -y @giftsofprometheus/cli` instead of stopping to ask for an install. The site's "pick talks with your AI agent" prompt relies on this.
+- Skill: onboarding runs when the user asks for it, and ends with the personal feed. Before `finish` the agent signs in by itself and only gives the user the confirmation link.
+- `onboarding deck` and `onboarding react` print compact cards: `slug`, `title`, `summary` (the first paragraph), speaker names, topic titles and the event name. The deck output shrinks from about 50 KB to a few KB.
+
 ## 0.2.0
 
 - `onboarding topics`, `onboarding deck`, `onboarding react` and `onboarding finish`: a starting profile from topic choices and a numbered deck of up to 8 talks, judged by card number. The draft is kept in `onboarding.json` (0600) next to the session, so the steps before `finish` need no account and `finish` works after `login`.
