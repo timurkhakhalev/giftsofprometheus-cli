@@ -581,7 +581,22 @@ talks
     )
   )
 
-talks.command('get').argument('<slug-or-id>').action(run(resolveTalk))
+// The command a person typed, so a hint can be pasted back as is
+const launcher = /[\\/]_npx[\\/]/.test(packageRoot) ? 'npx @giftsofprometheus/cli' : 'giftsofprometheus'
+
+talks
+  .command('get')
+  .argument('<slug-or-id>')
+  .action(
+    run(async (id: string) => {
+      const talk = await resolveTalk(id)
+      // The next step after the summary is the transcript; stdout stays the talk's JSON
+      const signedIn = Boolean(await stored())
+      console.error(`Next: the full transcript — ${launcher} talks content ${talk.slug}${signedIn ? '' : ' (asks you to sign in in the browser first)'}`)
+
+      return talk
+    })
+  )
 
 talks
   .command('content')
