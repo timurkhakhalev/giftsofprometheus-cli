@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
-import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises'
+import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -78,6 +78,77 @@ test('CLI validates credentials and business responses while preserving raw JSON
       requests.some(request => request.path === '/api/auth/device/token'),
       false
     )
+  } finally {
+    server.close()
+    await rm(config, { recursive: true, force: true })
+  }
+})
+
+test('ask and catalog search send the saved session and validate options before requests', async () => {
+  const requests = []
+  const { version } = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'))
+
+  const server = createServer((request, response) => {
+    requests.push({ path: request.url, method: request.method, authorization: request.headers.authorization, agent: request.headers['user-agent'] })
+    response.setHeader('Content-Type', 'application/json')
+
+    if (request.url.startsWith('/api/knowledge/passages') && !request.headers.authorization) {
+      response.statusCode = 401
+      response.end(JSON.stringify({ error: 'Требуется вход' }))
+    } else response.end(JSON.stringify({ recId: 'result', items: [] }))
+  })
+
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
+  const base = `http://127.0.0.1:${server.address().port}`
+  const config = await mkdtemp(join(tmpdir(), 'giftsofprometheus-ask-'))
+
+  const cli = args =>
+    new Promise((resolve, reject) => {
+      const child = spawn(process.execPath, [executable, '--json', ...args], {
+        env: {
+          ...process.env,
+          GIFTSOFPROMETHEUS_URL: base,
+          XDG_CONFIG_HOME: config,
+          GIFTSOFPROMETHEUS_NO_UPDATE_CHECK: '1',
+          GIFTSOFPROMETHEUS_NO_BROWSER: '1',
+        },
+        timeout: 5000,
+      })
+
+      let output = ''
+      child.stdout.on('data', chunk => (output += chunk))
+      child.on('error', reject)
+      child.on('close', code => resolve({ code, data: JSON.parse(output) }))
+    })
+
+  try {
+    const unauthenticated = await cli(['ask', 'a'])
+    assert.equal(unauthenticated.data.error.status, 401)
+    assert.match(unauthenticated.data.error.nextStep, /login --start/)
+    await cli(['talks', 'search', 'a'])
+    assert.equal(requests.at(-1).authorization, undefined)
+    await mkdir(join(config, 'giftsofprometheus'))
+    await writeFile(join(config, 'giftsofprometheus', 'credentials.json'), JSON.stringify({ base, token: 'secret' }), { mode: 0o600 })
+    const result = await cli(['ask', 'a', '--q', 'b', '--q', 'c', '--limit', '5', '--per-talk', '1'])
+    assert.equal(result.code, 0)
+    assert.deepEqual(result.data, { recId: 'result', items: [] })
+    assert.deepEqual(requests.at(-1), {
+      path: '/api/knowledge/passages?q=a&q=b&q=c&limit=5&perTalk=1',
+      method: 'GET',
+      authorization: 'Bearer secret',
+      agent: `giftsofprometheus/${version}`,
+    })
+    await cli(['talks', 'search', 'a'])
+    assert.equal(requests.at(-1).authorization, 'Bearer secret')
+    const count = requests.length
+
+    for (const args of [
+      ['ask', 'a', '--q', 'b', '--q', 'c', '--q', 'd'],
+      ['ask', 'a', '--limit', 'x'],
+      ['ask', 'a', '--per-talk', 'x'],
+    ])
+      assert.equal((await cli(args)).code, 1)
+    assert.equal(requests.length, count)
   } finally {
     server.close()
     await rm(config, { recursive: true, force: true })

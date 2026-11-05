@@ -90,11 +90,7 @@ test('similar talks, transcript and favorites carry the recId of the list and su
     const count = requests.length
     const invalid = await cli(['talks', 'content', 'next', '--rec-id', 'not-a-uuid'])
     assert.equal(invalid.code, 1)
-    assert.equal(
-      requests.filter(r => r.path.includes('/content')).length,
-      requests.slice(0, count).filter(r => r.path.includes('/content')).length,
-      'an invalid recId is refused before the request'
-    )
+    assert.equal(requests.length, count, 'an invalid recId is refused before any request')
   } finally {
     server.close()
     await rm(config, { recursive: true, force: true })

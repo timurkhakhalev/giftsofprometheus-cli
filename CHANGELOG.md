@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.0
+
+- `ask <query> [--q <query>] [--limit n] [--per-talk n]` searches talk passages and returns citations and timecoded URLs; requires sign-in and the service endpoint `GET /api/knowledge/passages`.
+- `talks search` sends the saved session when available. `talks content --rec-id` rejects an invalid UUID before any request.
+- Skill: use `ask` for content questions with English, Chinese and original-language formulations; attribute transcript reads and cite the returned passage links.
+
 ## 0.3.0
 
 - `talks similar <slug-or-id>`: up to four similar talks with a reason each. With a session the list has a `recId`.

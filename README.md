@@ -37,6 +37,7 @@ giftsofprometheus doctor
 ## Быстрый старт
 
 ```bash
+giftsofprometheus ask 'как оценивать агентов' --q 'agent evaluation'  # фрагменты транскриптов
 giftsofprometheus talks search 'оценка агентов'    # без аккаунта
 giftsofprometheus talks get <slug>                  # описание, спикеры, темы, ссылка на видео
 
@@ -112,10 +113,11 @@ npx skills add timurkhakhalev/giftsofprometheus-cli
 
 | Команда | Что делает | Аккаунт |
 |---|---|---|
+| `ask <вопрос> [--q формулировка] [--limit n] [--per-talk n]` | Фрагменты транскриптов с цитатами и ссылками на секунду; `--q` повторяется до двух раз | ✓ |
 | `talks search <запрос> [--page n]` | Поиск опубликованных докладов по названию, описанию, спикеру и теме | |
 | `talks list [--page n]` | Каталог по страницам | |
 | `talks get <slug-или-id>` | Доклад с описанием, спикерами, темами и видео | |
-| `talks content <slug-или-id>` | Полный транскрипт на языке доклада | ✓ |
+| `talks content <slug-или-id> [--rec-id UUID]` | Полный транскрипт на языке доклада | ✓ |
 | `favorites list [--page n] [--limit n]` | Ваше избранное | ✓ |
 | `favorites add <slug-или-id>` / `remove` | Добавить в избранное или убрать | ✓ |
 | `profile get` | Ваши интересы и текущая задача | ✓ |
