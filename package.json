@@ -1,6 +1,6 @@
 {
   "name": "@giftsofprometheus/cli",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Search AI conference talks, read transcripts, and manage your Gifts of Prometheus favorites from the shell or an AI agent",
   "keywords": [
     "agents",

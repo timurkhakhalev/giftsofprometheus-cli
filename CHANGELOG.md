@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3
+
+- README: installation from npm, npm badge.
+
 ## 0.1.2
 
 - Published to npm as `@giftsofprometheus/cli` through Trusted Publishing, with provenance.
