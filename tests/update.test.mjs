@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { execFileSync, spawn } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import { mkdtemp, mkdir, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -14,6 +14,9 @@ const executable = join(root, 'dist', 'index.js')
 const bundled = await readFile(join(root, 'skills', 'giftsofprometheus', 'SKILL.md'), 'utf8')
 
 const history = JSON.parse(await readFile(join(root, 'skills', 'history.json'), 'utf8'))
+
+// SKILL.md as released in 0.1.3; CI checks out without tags, so it is a fixture and not git show
+const oldSkill = await readFile(join(root, 'tests', 'fixtures', 'skill-0.1.3.md'), 'utf8')
 
 const { version } = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'))
 
@@ -56,7 +59,7 @@ test('skill hash ignores the description, merge keeps a custom one', () => {
   assert.notEqual(skillHash(bundled.replace('## Read', '## Read more')), skillHash(bundled))
 
   const stock = history.map(entry => entry.description)
-  const old = execFileSync('git', ['show', 'v0.1.3:skills/giftsofprometheus/SKILL.md'], { cwd: root, encoding: 'utf8' })
+  const old = oldSkill
   assert.equal(mergeSkill(bundled, old, stock), bundled, 'a stock description is replaced by the new one')
   assert.equal(mergeSkill(bundled, old.replace(/^description:.*$/m, 'description: Mine'), stock), bundled.replace(/^description:.*$/m, 'description: Mine'))
 
@@ -70,7 +73,7 @@ test('doctor finds installed skills; skill update replaces outdated copies and k
   // Real path: macOS links /var to /private/var, and process.cwd() reports the resolved one
   const home = await realpath(await mkdtemp(join(tmpdir(), 'giftsofprometheus-update-')))
   const project = join(home, 'project')
-  const old = execFileSync('git', ['show', 'v0.1.3:skills/giftsofprometheus/SKILL.md'], { cwd: root, encoding: 'utf8' })
+  const old = oldSkill
   const personal = join(home, '.agents', 'skills', 'giftsofprometheus')
   const edited = join(project, '.claude', 'skills', 'giftsofprometheus')
 
