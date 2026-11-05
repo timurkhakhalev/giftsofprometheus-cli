@@ -53,7 +53,7 @@ async function request(path: string, method = 'GET', body?: unknown, authenticat
 
   if (target.protocol !== 'https:' && !['localhost', '127.0.0.1', '[::1]'].includes(target.hostname)) throw new ApiError('HTTPS is required outside localhost')
   const credential = authenticated ? await stored() : null
-  const headers = new Headers({ 'Content-Type': 'application/json', 'X-Knowledge-Client': 'agent', 'User-Agent': `giftsofprometheus-cli/${version}` })
+  const headers = new Headers({ 'Content-Type': 'application/json', 'X-Knowledge-Client': 'agent', 'User-Agent': `giftsofprometheus/${version}` })
 
   if (credential) headers.set('Authorization', `Bearer ${credential.token}`)
   const response = await fetch(target, { method, headers, redirect: 'error', ...(body === undefined ? {} : { body: JSON.stringify(body) }) })

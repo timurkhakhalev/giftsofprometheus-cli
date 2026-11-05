@@ -13,7 +13,7 @@ test('CLI validates credentials and business responses while preserving raw JSON
   const requests = []
 
   const server = createServer((request, response) => {
-    requests.push({ path: request.url, method: request.method, authorization: request.headers.authorization })
+    requests.push({ path: request.url, method: request.method, authorization: request.headers.authorization, agent: request.headers['user-agent'] })
     response.setHeader('Content-Type', 'application/json')
 
     if (request.url === '/api/knowledge/talks/good') response.end(JSON.stringify({ id: 1, slug: 'good', title: 'Keep this field' }))
@@ -46,6 +46,7 @@ test('CLI validates credentials and business responses while preserving raw JSON
     await writeFile(join(config, 'giftsofprometheus', 'credentials.json'), JSON.stringify({ base, token: 7 }))
     const list = await cli(['talks', 'list', '--page', '2'])
     assert.equal(list.code, 0)
+    assert.match(requests.at(-1).agent, /^giftsofprometheus\/\d/, 'the service names CLI devices by this prefix')
     assert.equal(list.data.page, 2)
     assert.equal(requests.at(-1).path, '/api/knowledge/talks?page=2')
     const raw = await cli(['request', '/api/account/me'])

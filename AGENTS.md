@@ -16,6 +16,7 @@ Use pnpm. `pnpm check` runs lint (oxlint), formatting (oxfmt), the type check, t
 ## Rules
 
 - The CLI calls only the public API prefixes listed in `publicApi` in `src/index.ts`. Do not add internal service endpoints, admin routes or hosts other than the configured origin.
+- The `User-Agent` stays `giftsofprometheus/<version>`: the service recognizes the CLI by this prefix when it names the device on the account page.
 - Never log, print or include the stored session token in errors.
 - `--json` output is a contract for agents: one JSON document on stdout, errors as `{"error":{"message","status"}}` with exit code 1. Keep it stable.
 - Commands that change the user's data (`favorites add/remove`, `profile update`) run only on an explicit command. Do not add side effects to read commands.

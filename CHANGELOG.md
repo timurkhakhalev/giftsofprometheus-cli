@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.1
+
+- The `User-Agent` is `giftsofprometheus/<version>` again, so the account page names CLI devices as before.
+- README in Russian.
+
 ## 0.1.0
 
 First public release.
