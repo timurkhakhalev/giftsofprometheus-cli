@@ -34,6 +34,7 @@ giftsofprometheus --json talks search 'agent evaluation'   # published talks by 
 giftsofprometheus --json talks list --page 2               # the whole catalog, page by page
 giftsofprometheus --json talks get <slug-or-id>            # one talk: summary, speakers, topics, publication
 giftsofprometheus --json talks content <slug-or-id>        # full transcript, requires login
+giftsofprometheus --json talks similar <slug-or-id>        # up to four similar talks with a reason each
 giftsofprometheus --json feed                              # personal recommendations, requires login
 giftsofprometheus --json favorites list                    # saved talks, requires login
 giftsofprometheus --json profile get                       # interests and current task, requires login
@@ -44,6 +45,17 @@ giftsofprometheus --json profile get                       # interests and curre
 - A transcript is in the talk's original language. Segment timecodes are in milliseconds from the start of the talk. When a talk is a part of a longer recording, `sourceRange` gives its bounds in that recording. A talk without a transcript returns an empty array.
 - `request <path>` makes a read-only GET to a path under `/api/knowledge/` or `/api/account/` that no command covers.
 - Reading never needs the user's confirmation: search, open talks and transcripts as the task requires.
+- A list with a `recId` (feed, search, similar) puts it into each item's `contentUrl`. When you open a talk from that list, pass it on: `talks content <slug> --rec-id <recId>`, and `favorites add <slug> --rec-id <recId>` when the user saves it.
+
+## Next steps
+
+After answering, offer one next step in a short line, matched to where the user is. Offer each kind at most once per talk, and skip it when the user is busy with something else:
+
+- After a summary (`talks get`): the full transcript.
+- After the transcript or a discussion of it: talks like this one (`talks similar`); show titles with their `reason`.
+- When the user says a talk was useful: saving it to favorites. Save only after they agree.
+
+Commands print the suggested next command on stderr. It is a hint for you; do not run a change without the user.
 
 ## Onboarding
 

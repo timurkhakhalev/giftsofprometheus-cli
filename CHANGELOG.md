@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0
+
+- `talks similar <slug-or-id>`: up to four similar talks with a reason each. With a session the list has a `recId`.
+- `talks content --rec-id` and `favorites add --rec-id` pass the `recId` of the list the talk came from (feed, search or similar), so the service attributes the transcript and the bookmark to that list. An invalid `recId` is refused before the request.
+- `talks content` prints the next step on stderr: similar talks, or saving the talk if the user asks.
+- Skill: one next step after an answer (summary → transcript → similar talks → favorites), each at most once per talk; the agent passes `recId` on.
+- Requires the service endpoint `GET /api/knowledge/talks/:slug/similar`.
+
 ## 0.2.2
 
 - An npm-installed CLI checks for a new version once a day and prints a line starting with `Update:` on stderr after the command; npx runs are not checked. `GIFTSOFPROMETHEUS_NO_UPDATE_CHECK=1` or `CI` turns it off.

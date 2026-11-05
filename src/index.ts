@@ -469,10 +469,19 @@ async function resolveTalk(value: string) {
     .parse(await request(`/api/knowledge/talks/${encodeURIComponent(value)}`, 'GET', undefined, false))
 }
 
-async function event(talk: string, type: 'bookmark' | 'unbookmark') {
-  const item = await resolveTalk(talk)
+// The service checks the recId against its own deliveries; the CLI only refuses what cannot be one
+const recIdOption = z.uuid()
 
-  return request('/api/knowledge/events', 'POST', [{ id: randomUUID(), type, talkId: item.id, context: 'talk_page' }])
+function recIdQuery(recId: string | undefined) {
+  return recId === undefined ? '' : `?recId=${encodeURIComponent(recIdOption.parse(recId))}`
+}
+
+async function event(talk: string, type: 'bookmark' | 'unbookmark', recId?: string) {
+  const item = await resolveTalk(talk)
+  // With a recId the service takes the context from that list; `similar` only passes its check
+  const source = recId === undefined ? { context: 'talk_page' } : { context: 'similar', recId: recIdOption.parse(recId) }
+
+  return request('/api/knowledge/events', 'POST', [{ id: randomUUID(), type, talkId: item.id, ...source }])
 }
 
 program.exitOverride()
@@ -601,11 +610,34 @@ talks
 talks
   .command('content')
   .argument('<slug-or-id>')
+  .option('--rec-id <recId>', 'recId of the list the talk came from (feed, search or similar)')
+  .action(
+    run(async (id: string, options: { recId?: string }) => {
+      const talk = await resolveTalk(id)
+      const result = await request(`/api/knowledge/talks/${encodeURIComponent(String(talk.slug))}/content${recIdQuery(options.recId)}`, 'POST')
+      // After the transcript: talks like this one, or saving it if the user found it useful
+      console.error(`Next: similar talks — ${launcher} talks similar ${talk.slug}; save it if the user asks — ${launcher} favorites add ${talk.slug}`)
+
+      return result
+    })
+  )
+
+talks
+  .command('similar')
+  .argument('<slug-or-id>')
   .action(
     run(async (id: string) => {
       const talk = await resolveTalk(id)
 
-      return request(`/api/knowledge/talks/${encodeURIComponent(String(talk.slug))}/content`, 'POST')
+      // Public; with a session the list gets a recId, and each item's contentUrl carries it
+      const result = z
+        .object({ recId: z.string().optional() })
+        .loose()
+        .parse(await request(`/api/knowledge/talks/${encodeURIComponent(String(talk.slug))}/similar`))
+
+      if (result.recId) console.error(`Next: open one with ${launcher} talks content <slug> --rec-id ${result.recId}`)
+
+      return result
     })
   )
 
@@ -622,7 +654,8 @@ favorites
 favorites
   .command('add')
   .argument('<slug-or-id>')
-  .action(run((id: string) => event(id, 'bookmark')))
+  .option('--rec-id <recId>', 'recId of the list the talk came from')
+  .action(run((id: string, options: { recId?: string }) => event(id, 'bookmark', options.recId)))
 
 favorites
   .command('remove')
