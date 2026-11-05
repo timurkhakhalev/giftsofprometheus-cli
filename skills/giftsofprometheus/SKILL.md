@@ -47,7 +47,7 @@ giftsofprometheus --json profile get                       # interests and curre
 - Lists are paginated: check `totalPages` and pass `--page`.
 - Search and use the returned `slug` or `id` for exact reads.
 - A transcript is in the talk's original language. Segment timecodes are in milliseconds from the start of the talk. When a talk is a part of a longer recording, `sourceRange` gives its bounds in that recording. A talk without a transcript returns an empty array.
-- `request <path>` makes a read-only GET to a path under `/api/knowledge/` or `/api/account/` that no command covers.
+- `request <path>` makes a read-only GET to a full path under `/api/knowledge/` or `/api/account/` that no command covers, for example `request /api/knowledge/talks/<slug>/state` for the user's current reaction and bookmark on a talk.
 - Reading never needs the user's confirmation: search, open talks and transcripts as the task requires.
 - A list with a `recId` (feed, search, similar, `ask`) returns it at the top of the response. When you open a talk from that list, pass it on: `talks content <slug> --rec-id <recId>`, and `favorites add <slug> --rec-id <recId>` when the user saves it.
 

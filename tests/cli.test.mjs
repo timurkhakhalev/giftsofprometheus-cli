@@ -66,6 +66,11 @@ test('CLI validates credentials and business responses while preserving raw JSON
       assert.ok(outside.data.error.message, path)
     }
 
+    assert.match(
+      (await cli(['request', 'talks/good/state'])).data.error.message,
+      /full path starting with \/api\/knowledge\//,
+      'a relative path says what to pass'
+    )
     assert.equal(requests.length, sent, 'paths outside the public API are rejected before any request')
     assert.equal((await cli(['talks', 'get', 'good'])).data.title, 'Keep this field')
     assert.equal((await cli(['favorites', 'add', 'bad'])).code, 1)
