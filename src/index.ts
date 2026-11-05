@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 import { z } from 'zod'
 import { Command } from 'commander'
-import { chmod, mkdir, readFile, writeFile, unlink } from 'node:fs/promises'
+import { chmod, lstat, mkdir, readFile, rename, writeFile, unlink } from 'node:fs/promises'
 import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { isAbsolute, join } from 'node:path'
 import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { createRequire } from 'node:module'
@@ -18,20 +18,31 @@ const base = (process.env.GIFTSOFPROMETHEUS_URL || 'https://giftsofprometheus.co
 // The CLI talks only to the public Knowledge and account APIs
 const publicApi = ['/api/knowledge/', '/api/account/', '/api/auth/device/']
 
-const directory = join(process.env.XDG_CONFIG_HOME || join(homedir(), '.config'), 'giftsofprometheus')
+// The XDG spec says to ignore a relative XDG_CONFIG_HOME; honouring it would put the token under the working directory, often a Git checkout
+const configHome = process.env.XDG_CONFIG_HOME && isAbsolute(process.env.XDG_CONFIG_HOME) ? process.env.XDG_CONFIG_HOME : join(homedir(), '.config')
+
+const directory = join(configHome, 'giftsofprometheus')
 
 const credentials = join(directory, 'credentials.json')
 
 type Credentials = { base: string; token: string }
 
-async function stored(): Promise<Credentials | null> {
+const credentialsSchema = z.object({ base: z.string(), token: z.string() })
+
+async function storedAny(): Promise<Credentials | null> {
   try {
-    const parsed = z.object({ base: z.literal(base), token: z.string() }).safeParse(JSON.parse(await readFile(credentials, 'utf8')))
+    const parsed = credentialsSchema.safeParse(JSON.parse(await readFile(credentials, 'utf8')))
 
     return parsed.success ? parsed.data : null
   } catch {
     return null
   }
+}
+
+async function stored(): Promise<Credentials | null> {
+  const value = await storedAny()
+
+  return value?.base === base ? value : null
 }
 
 class ApiError extends Error {
@@ -40,6 +51,28 @@ class ApiError extends Error {
     readonly status = 1
   ) {
     super(message)
+  }
+}
+
+// Server text reaches a terminal: remove control characters so a response cannot inject ANSI or OSC escape sequences
+// oxlint-disable-next-line no-control-regex -- matching control characters is the purpose of this function
+const printable = (value: string) => value.replace(/[\u0000-\u001f\u007f-\u009f]/g, '')
+
+// A fresh 0600 file renamed into place: the token never lands in an existing file with loose permissions or behind a symlink
+async function saveCredentials(value: Credentials) {
+  await mkdir(directory, { recursive: true, mode: 0o700 })
+  const info = await lstat(directory)
+
+  if (!info.isDirectory() || (process.getuid && info.uid !== process.getuid())) throw new ApiError(`Unsafe config directory: ${directory}`)
+  await chmod(directory, 0o700)
+  const temporary = join(directory, `.credentials-${randomUUID()}.json`)
+
+  try {
+    await writeFile(temporary, JSON.stringify(value), { mode: 0o600, flag: 'wx' })
+    await rename(temporary, credentials)
+  } catch (e) {
+    await unlink(temporary).catch(() => {})
+    throw e
   }
 }
 
@@ -56,15 +89,21 @@ async function request(path: string, method = 'GET', body?: unknown, authenticat
   const headers = new Headers({ 'Content-Type': 'application/json', 'X-Knowledge-Client': 'agent', 'User-Agent': `giftsofprometheus/${version}` })
 
   if (credential) headers.set('Authorization', `Bearer ${credential.token}`)
-  const response = await fetch(target, { method, headers, redirect: 'error', ...(body === undefined ? {} : { body: JSON.stringify(body) }) })
+
+  const response = await fetch(target, {
+    method,
+    headers,
+    redirect: 'error',
+    signal: AbortSignal.timeout(30_000),
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  })
+
   const data = await response.json().catch(() => ({}))
 
   if (!response.ok) {
     const failure = z.object({ error_description: z.string().optional(), error: z.string().optional() }).safeParse(data)
-    throw new ApiError(
-      failure.success ? failure.data.error_description || failure.data.error || `HTTP ${response.status}` : `HTTP ${response.status}`,
-      response.status
-    )
+    const message = failure.success ? failure.data.error_description || failure.data.error || `HTTP ${response.status}` : `HTTP ${response.status}`
+    throw new ApiError(printable(message).slice(0, 500), response.status)
   }
 
   return data
@@ -82,7 +121,7 @@ function run<Args extends unknown[]>(fn: (...args: Args) => Promise<unknown>) {
       const message = e instanceof Error ? e.message : 'Unknown error'
 
       if (program.opts().json) console.log(JSON.stringify({ error: { message, status: e instanceof ApiError ? e.status : 1 } }))
-      else console.error(message)
+      else console.error(printable(message))
       process.exitCode = 1
     }
   }
@@ -90,55 +129,58 @@ function run<Args extends unknown[]>(fn: (...args: Args) => Promise<unknown>) {
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-async function login() {
-  const data = z
-    .object({ user_code: z.string(), device_code: z.string(), interval: z.number().optional(), expires_in: z.number().optional() })
-    .parse(await request('/api/auth/device/code', 'POST', { client_id: 'giftsofprometheus' }, false))
+// Windows is skipped: a short program name is looked up in the current directory before PATH, so a checkout could plant cmd.exe,
+// and cmd.exe also interprets & | ^ in the URL. The printed link is enough there
+function openBrowser(url: URL) {
+  const opener = process.platform === 'darwin' ? '/usr/bin/open' : process.platform === 'win32' ? null : 'xdg-open'
 
-  const code = String(data.user_code),
-    device = String(data.device_code)
-
-  const verification = new URL('/device', base)
-  verification.searchParams.set('user_code', code)
-  console.error(`Open ${verification} and confirm the code ${code}`)
-  const opener = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'cmd' : 'xdg-open'
-
-  const child = spawn(opener, process.platform === 'win32' ? ['/c', 'start', '', verification.toString()] : [verification.toString()], {
-    detached: true,
-    stdio: 'ignore',
-  })
-
+  if (!opener) return
+  const child = spawn(opener, [url.href], { detached: true, stdio: 'ignore', shell: false })
   child.on('error', () => {})
   child.unref()
-  let interval = Number(data.interval || 5)
-  const deadline = Date.now() + Number(data.expires_in || 900) * 1000
+}
+
+async function login() {
+  // Bounded: a zero interval would poll without pause and a huge expiry would poll forever
+  const data = z
+    .object({
+      user_code: z.string().regex(/^[A-Z0-9-]{4,32}$/i),
+      device_code: z.string().min(1).max(512),
+      interval: z.number().int().min(1).max(60).optional(),
+      expires_in: z.number().int().min(1).max(1800).optional(),
+    })
+    .parse(await request('/api/auth/device/code', 'POST', { client_id: 'giftsofprometheus' }, false))
+
+  const verification = new URL('/device', base)
+  verification.searchParams.set('user_code', data.user_code)
+  console.error(`Open ${verification} and confirm the code ${data.user_code}`)
+  openBrowser(verification)
+  let interval = data.interval ?? 5
+  const deadline = Date.now() + (data.expires_in ?? 900) * 1000
 
   while (Date.now() < deadline) {
     await sleep(interval * 1000)
 
     try {
       const token = z
-        .object({ access_token: z.string(), expires_in: z.number().optional() })
+        .object({ access_token: z.string().min(1), expires_in: z.number().optional() })
         .parse(
           await request(
             '/api/auth/device/token',
             'POST',
-            { grant_type: 'urn:ietf:params:oauth:grant-type:device_code', device_code: device, client_id: 'giftsofprometheus' },
+            { grant_type: 'urn:ietf:params:oauth:grant-type:device_code', device_code: data.device_code, client_id: 'giftsofprometheus' },
             false
           )
         )
 
-      await mkdir(directory, { recursive: true, mode: 0o700 })
-      await chmod(directory, 0o700)
-      await writeFile(credentials, JSON.stringify({ base, token: token.access_token }), { mode: 0o600 })
-      await chmod(credentials, 0o600)
+      await saveCredentials({ base, token: token.access_token })
 
       return { signedIn: true, expiresIn: token.expires_in }
     } catch (e) {
       const message = e instanceof Error ? e.message : ''
 
       if (/slow.down|too frequently/i.test(message)) {
-        interval += 5
+        interval = Math.min(interval + 5, 60)
         continue
       }
 
@@ -153,7 +195,7 @@ async function login() {
 async function resolveTalk(value: string) {
   return z
     .object({ id: z.number(), slug: z.string() })
-    .passthrough()
+    .loose()
     .parse(await request(`/api/knowledge/talks/${encodeURIComponent(value)}`, 'GET', undefined, false))
 }
 
@@ -180,6 +222,13 @@ program
   .description('Revoke this CLI session')
   .action(
     run(async () => {
+      const saved = await storedAny()
+
+      // A session issued by another service is neither revoked nor deleted: removing the file would leave that session valid
+      if (saved && saved.base !== base) throw new ApiError(`The stored session belongs to ${saved.base}; run logout with GIFTSOFPROMETHEUS_URL=${saved.base}`)
+
+      if (!saved) return { signedOut: true }
+
       try {
         await request('/api/account/logout', 'POST')
       } catch (e) {
@@ -282,10 +331,43 @@ const profile = program.command('profile').description('Read or update interests
 
 profile.command('get').action(run(() => request('/api/knowledge/profile')))
 
+const levels = z.enum(['high', 'interested', 'not_interested'])
+
+// The service omits the slug of a deleted topic; such interests are dropped on update
+const currentProfile = z.object({ interests: z.array(z.object({ topic: z.string().optional(), level: levels })), queryText: z.string() })
+
+const collect = (value: string, previous: string[]) => [...previous, value]
+
+type ProfileOptions = { interest: string[]; removeInterest: string[]; queryText?: string }
+
+// Flags only, no file input: an agent steered by untrusted text cannot be made to upload a local file
+async function updateProfile(o: ProfileOptions) {
+  const current = currentProfile.parse(await request('/api/knowledge/profile'))
+  const interests = new Map(current.interests.flatMap(i => (i.topic ? [[i.topic, i.level] as const] : [])))
+
+  for (const topic of o.removeInterest) interests.delete(topic)
+
+  for (const entry of o.interest) {
+    const [topic, level, ...rest] = entry.split('=')
+    const parsed = levels.safeParse(level)
+
+    if (!topic || rest.length || !parsed.success) throw new ApiError(`Invalid --interest ${printable(entry)}: use topic=high|interested|not_interested`)
+    interests.set(topic, parsed.data)
+  }
+
+  return request('/api/knowledge/profile', 'PUT', {
+    interests: [...interests].map(([topic, level]) => ({ topic, level })),
+    queryText: o.queryText ?? current.queryText,
+  })
+}
+
 profile
   .command('update')
-  .requiredOption('--file <path>', 'JSON with interests and queryText')
-  .action(run(async (o: { file: string }) => request('/api/knowledge/profile', 'PUT', JSON.parse(await readFile(o.file, 'utf8')))))
+  .description('Change interests or the current task; fields you do not pass keep their values')
+  .option('--interest <topic=level>', 'set a topic to high, interested or not_interested; repeatable', collect, [])
+  .option('--remove-interest <topic>', 'remove a topic; repeatable', collect, [])
+  .option('--query-text <text>', 'replace the current task; an empty string clears it')
+  .action(run(updateProfile))
 
 program
   .command('feed')
@@ -311,6 +393,6 @@ program.parseAsync().catch(e => {
   if (e.code === 'commander.helpDisplayed' || e.code === 'commander.version') return
 
   if (program.opts().json) console.log(JSON.stringify({ error: { message: e.message, status: 1 } }))
-  else if (!e.code?.startsWith('commander.')) console.error(e.message)
+  else if (!e.code?.startsWith('commander.')) console.error(printable(String(e.message)))
   process.exitCode = 1
 })

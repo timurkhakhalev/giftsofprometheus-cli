@@ -110,7 +110,7 @@ npx skills add timurkhakhalev/giftsofprometheus-cli
 | `favorites list [--page n] [--limit n]` | Ваше избранное | ✓ |
 | `favorites add <slug-или-id>` / `remove` | Добавить в избранное или убрать | ✓ |
 | `profile get` | Ваши интересы и текущая задача | ✓ |
-| `profile update --file <json>` | Заменить их содержимым JSON-файла | ✓ |
+| `profile update [--interest тема=уровень] [--remove-interest тема] [--query-text текст]` | Изменить интересы (`high`, `interested`, `not_interested`) или текущую задачу; остальное не меняется | ✓ |
 | `feed` | Подборка по вашему профилю | ✓ |
 | `request <путь>` | GET-запрос только на чтение к `/api/knowledge/…` или `/api/account/…` | ✓ |
 | `login`, `logout`, `whoami`, `doctor` | Вход, выход, текущий аккаунт, проверка настройки | |
@@ -121,7 +121,7 @@ npx skills add timurkhakhalev/giftsofprometheus-cli
 | Переменная | По умолчанию | |
 |---|---|---|
 | `GIFTSOFPROMETHEUS_URL` | `https://giftsofprometheus.com` | Адрес сервиса. HTTP без TLS разрешён только для `localhost` |
-| `XDG_CONFIG_HOME` | `~/.config` | Где хранится сессия |
+| `XDG_CONFIG_HOME` | `~/.config` | Где хранится сессия; относительный путь игнорируется |
 
 ## Разработка
 

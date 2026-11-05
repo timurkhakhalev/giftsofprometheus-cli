@@ -5,18 +5,19 @@ on:
     tags: ['v*']
 
 permissions:
-  contents: write
-  id-token: write
+  contents: read
 
 jobs:
-  publish:
+  # Dependencies and checks run without write or OIDC permissions; only the built tarball moves on to the publish job
+  build:
     runs-on: ubuntu-latest
-    # npm trusts this repository, workflow file and environment (Trusted Publishing, OIDC): no token is stored
-    environment: npm
     steps:
-      - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v5
+      # Actions are pinned to commit SHAs: a moved tag cannot change what runs in the release
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 24
           cache: pnpm
@@ -25,10 +26,33 @@ jobs:
         run: test "v$(node -p "require('./package.json').version")" = "${GITHUB_REF_NAME}"
       - run: pnpm check
       - run: npm pack
+      - name: Release notes
+        run: awk -v v="## ${GITHUB_REF_NAME#v}" '$0==v{f=1;next} /^## /{f=0} f' CHANGELOG.md > notes.md
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: package
+          path: |
+            giftsofprometheus-cli-*.tgz
+            notes.md
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    # npm trusts this repository, workflow file and environment (Trusted Publishing, OIDC): no token is stored
+    environment: npm
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: package
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 24
       - name: GitHub release
-        run: |
-          awk -v v="## ${GITHUB_REF_NAME#v}" '$0==v{f=1;next} /^## /{f=0} f' CHANGELOG.md > notes.md
-          gh release create "$GITHUB_REF_NAME" giftsofprometheus-cli-*.tgz --title "$GITHUB_REF_NAME" --notes-file notes.md
+        run: gh release create "$GITHUB_REF_NAME" giftsofprometheus-cli-*.tgz --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --notes-file notes.md
         env:
           GH_TOKEN: ${{ github.token }}
       # Off until the package has a trusted publisher on npmjs.com; the release then ships only on GitHub
@@ -36,4 +60,4 @@ jobs:
         if: ${{ vars.NPM_PUBLISH == 'true' }}
         run: |
           npm install -g npm@^11.5.1
-          npm publish --access public
+          npm publish giftsofprometheus-cli-*.tgz --access public
