@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.1
+
+- `request` with a relative path says to pass a full path starting with `/api/knowledge/`, `/api/account/` or `/api/auth/device/`.
+- Skill: `request` takes a full path; `request /api/knowledge/talks/<slug>/state` shows the user's reaction and bookmark on a talk.
+
 ## 0.5.0
 
 - `talks react <slug-or-id> like|dislike|not-interested|clear [--rec-id]` records what the user said about a talk.

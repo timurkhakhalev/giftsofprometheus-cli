@@ -107,7 +107,8 @@ async function readState<T>(file: string, schema: z.ZodType<T & { base: string }
 }
 
 async function request(path: string, method = 'GET', body?: unknown, authenticated = true): Promise<unknown> {
-  if (!path.startsWith('/') || path.includes('\\')) throw new ApiError('Invalid API path')
+  if (!path.startsWith('/') || path.includes('\\'))
+    throw new ApiError(`Invalid API path: pass a full path starting with ${publicApi.join(', ')}, e.g. /api/knowledge/profile`)
   const target = new URL(base + path)
 
   // Checked after URL normalization, so `..` cannot leave the public API
