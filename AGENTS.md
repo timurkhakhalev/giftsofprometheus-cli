@@ -37,4 +37,5 @@ Do not hard-wrap prose in Markdown. Do not use emojis.
 ## Releasing
 
 1. Bump `version` in `package.json` and add a `CHANGELOG.md` section.
-2. Commit, tag `vX.Y.Z` and push the tag. The `release` workflow runs the checks, publishes to npm with provenance and creates a GitHub release.
+2. Commit, tag `vX.Y.Z` and push the tag. The `release` workflow runs the checks, creates a GitHub release with the package tarball attached and, when the `NPM_TOKEN` secret is set, publishes to npm with provenance.
+3. Until the package is on npm, update the release URL in the README install section.

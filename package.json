@@ -36,7 +36,6 @@
     "format:fix": "oxfmt --write .",
     "test": "pnpm build && node --test tests/*.test.mjs",
     "check": "pnpm lint && pnpm format && pnpm typecheck && pnpm test",
-    "prepare": "npm run build",
     "prepublishOnly": "pnpm check"
   },
   "dependencies": {

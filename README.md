@@ -19,11 +19,11 @@ Gifts of Prometheus collects talks from AI conferences (AI Engineer, BAAI, Apsar
 Requires Node.js 22.12 or later.
 
 ```bash
-npm install -g github:timurkhakhalev/giftsofprometheus-cli
+npm install -g https://github.com/timurkhakhalev/giftsofprometheus-cli/releases/download/v0.1.0/giftsofprometheus-cli-0.1.0.tgz
 giftsofprometheus doctor
 ```
 
-The npm package `@giftsofprometheus/cli` is on its way. Until it is published, install from GitHub as above.
+The npm package `@giftsofprometheus/cli` is on its way. Until it is published, install the build attached to the [latest release](https://github.com/timurkhakhalev/giftsofprometheus-cli/releases/latest) as above.
 
 ## Quick start
 
