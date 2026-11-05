@@ -10,6 +10,7 @@
 
 <p>
   <a href="https://giftsofprometheus.com/?utm_source=github&amp;utm_medium=readme&amp;utm_campaign=cli"><img alt="Каталог: giftsofprometheus.com" src="https://img.shields.io/badge/каталог-giftsofprometheus.com-173a63.svg?style=for-the-badge&amp;labelColor=0a0f1c" height="28"></a>
+  <a href="https://www.npmjs.com/package/@giftsofprometheus/cli"><img alt="npm" src="https://img.shields.io/npm/v/@giftsofprometheus/cli.svg?style=for-the-badge&amp;labelColor=0a0f1c&amp;color=173a63" height="28"></a>
   <a href="https://github.com/timurkhakhalev/giftsofprometheus-cli/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/timurkhakhalev/giftsofprometheus-cli/ci.yml?branch=main&amp;style=for-the-badge&amp;labelColor=0a0f1c&amp;color=173a63&amp;label=CI" height="28"></a>
   <a href="LICENSE"><img alt="Лицензия: Apache-2.0" src="https://img.shields.io/github/license/timurkhakhalev/giftsofprometheus-cli.svg?style=for-the-badge&amp;labelColor=0a0f1c&amp;color=173a63" height="28"></a>
 </p>
@@ -27,11 +28,11 @@
 Нужен Node.js 22.12 или новее.
 
 ```bash
-npm install -g https://github.com/timurkhakhalev/giftsofprometheus-cli/releases/download/v0.1.1/giftsofprometheus-cli-0.1.1.tgz
+npm install -g @giftsofprometheus/cli
 giftsofprometheus doctor
 ```
 
-Пакет `@giftsofprometheus/cli` скоро появится в npm. Пока его нет, ставьте сборку из [последнего релиза](https://github.com/timurkhakhalev/giftsofprometheus-cli/releases/latest), как выше.
+Без установки: `npx @giftsofprometheus/cli talks search "evals"`. Пакет публикуется из GitHub Actions с [подтверждением происхождения](https://www.npmjs.com/package/@giftsofprometheus/cli#provenance).
 
 ## Быстрый старт
 
