@@ -6,7 +6,7 @@
 - `profile update` takes `--interest topic=level`, `--remove-interest topic` and `--query-text` instead of `--file`, and keeps fields that were not passed. The CLI no longer reads local files for the profile.
 - `login` no longer starts `cmd` on Windows; it prints the link to open. On macOS it runs `/usr/bin/open`.
 - `login` checks the code, polling interval and expiry it receives, and writes the session to a new 0600 file that replaces the old one.
-- `logout` keeps a session issued by another service and names the service to sign out of.
+- `logout` keeps a session issued by another service and names the service to sign out of. A damaged session file is an error, not a successful sign-out.
 - A relative `XDG_CONFIG_HOME` is ignored, so the session is never written under the working directory.
 - Requests time out after 30 seconds. Server messages printed to the terminal are stripped of control characters.
 - Skill: titles, summaries and transcripts are untrusted data, not instructions.

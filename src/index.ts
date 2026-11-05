@@ -29,20 +29,29 @@ type Credentials = { base: string; token: string }
 
 const credentialsSchema = z.object({ base: z.string(), token: z.string() })
 
-async function storedAny(): Promise<Credentials | null> {
-  try {
-    const parsed = credentialsSchema.safeParse(JSON.parse(await readFile(credentials, 'utf8')))
+/** Only a missing file means "no session"; a file that cannot be read or parsed may still hold a valid session */
+async function storedAny(): Promise<Credentials | null | 'unreadable'> {
+  let text: string
 
-    return parsed.success ? parsed.data : null
+  try {
+    text = await readFile(credentials, 'utf8')
+  } catch (e) {
+    return e instanceof Error && 'code' in e && e.code === 'ENOENT' ? null : 'unreadable'
+  }
+
+  try {
+    const parsed = credentialsSchema.safeParse(JSON.parse(text))
+
+    return parsed.success ? parsed.data : 'unreadable'
   } catch {
-    return null
+    return 'unreadable'
   }
 }
 
 async function stored(): Promise<Credentials | null> {
   const value = await storedAny()
 
-  return value?.base === base ? value : null
+  return value !== 'unreadable' && value?.base === base ? value : null
 }
 
 class ApiError extends Error {
@@ -223,6 +232,12 @@ program
   .action(
     run(async () => {
       const saved = await storedAny()
+
+      // The session in an unreadable file cannot be revoked from here, and deleting the file would hide that it may still be valid
+      if (saved === 'unreadable')
+        throw new ApiError(
+          `Cannot read ${credentials}, so this session was not revoked. Disconnect the device on ${new URL('/account', base)}, then delete the file`
+        )
 
       // A session issued by another service is neither revoked nor deleted: removing the file would leave that session valid
       if (saved && saved.base !== base) throw new ApiError(`The stored session belongs to ${saved.base}; run logout with GIFTSOFPROMETHEUS_URL=${saved.base}`)

@@ -108,6 +108,19 @@ test('logout keeps a session that belongs to another service', async () => {
     assert.equal((await h.cli(['logout'])).code, 0)
     assert.equal(h.requests.at(-1).authorization, 'Bearer local')
     await assert.rejects(stat(file))
+
+    // A damaged file may still hold a valid session: logout fails and keeps the file instead of reporting success
+    const before = h.requests.length
+
+    for (const damaged of ['{not json', JSON.stringify({ token: 'no base' })]) {
+      await writeFile(file, damaged)
+      const result = await h.cli(['logout'])
+      assert.equal(result.code, 1, damaged)
+      assert.match(JSON.parse(result.stdout).error.message, /\/account/)
+      assert.equal(await readFile(file, 'utf8'), damaged)
+    }
+
+    assert.equal(h.requests.length, before)
   } finally {
     await h.close()
   }
