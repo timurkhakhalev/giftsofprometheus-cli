@@ -573,6 +573,34 @@ program
     })
   )
 
+program
+  .command('ask')
+  .description('Find relevant passages in talk transcripts')
+  .argument('<query>', 'question or search formulation')
+  .option('--q <query>', 'another formulation, up to three in total', (value: string, previous: string[]) => [...previous, value], [])
+  .option('--limit <n>', 'maximum number of talks')
+  .option('--per-talk <n>', 'maximum passages per talk')
+  .action(
+    run((query: string, options: { q: string[]; limit?: string; perTalk?: string }) => {
+      const queries = z
+        .array(z.string().trim().min(1).max(200))
+        .min(1)
+        .max(3)
+        .parse([query, ...options.q])
+
+      const number = z.string().regex(/^\d+$/)
+      const params = new URLSearchParams()
+
+      for (const value of queries) params.append('q', value)
+
+      if (options.limit !== undefined) params.set('limit', number.parse(options.limit))
+
+      if (options.perTalk !== undefined) params.set('perTalk', number.parse(options.perTalk))
+
+      return request(`/api/knowledge/passages?${params}`)
+    })
+  )
+
 const talks = program.command('talks').description('Browse talks')
 
 talks
@@ -585,9 +613,7 @@ talks
   .argument('<query>')
   .option('--page <page>', 'page number', '1')
   .action(
-    run((query: string, options: { page: string }) =>
-      request(`/api/knowledge/talks?q=${encodeURIComponent(query)}&page=${encodeURIComponent(options.page)}`, 'GET', undefined, false)
-    )
+    run((query: string, options: { page: string }) => request(`/api/knowledge/talks?q=${encodeURIComponent(query)}&page=${encodeURIComponent(options.page)}`))
   )
 
 // The command a person typed, so a hint can be pasted back as is
@@ -613,8 +639,9 @@ talks
   .option('--rec-id <recId>', 'recId of the list the talk came from (feed, search or similar)')
   .action(
     run(async (id: string, options: { recId?: string }) => {
+      const query = recIdQuery(options.recId)
       const talk = await resolveTalk(id)
-      const result = await request(`/api/knowledge/talks/${encodeURIComponent(String(talk.slug))}/content${recIdQuery(options.recId)}`, 'POST')
+      const result = await request(`/api/knowledge/talks/${encodeURIComponent(String(talk.slug))}/content${query}`, 'POST')
       // After the transcript: talks like this one, or saving it if the user found it useful
       console.error(`Next: similar talks — ${launcher} talks similar ${talk.slug}; save it if the user asks — ${launcher} favorites add ${talk.slug}`)
 

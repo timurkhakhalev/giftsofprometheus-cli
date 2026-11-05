@@ -18,7 +18,7 @@ Run `command -v giftsofprometheus`. If it is missing, run every command below as
 
 ## Sign in
 
-Do not stop the task to send the user to the terminal. When a command needs an account (transcripts, favorites, profile, feed, `onboarding finish`) or fails with status 401:
+Do not stop the task to send the user to the terminal. When a command needs an account (passage search, transcripts, favorites, profile, feed, `onboarding finish`) or fails with status 401:
 
 1. Run `giftsofprometheus --json login --start`. It returns `verificationUrl` and `userCode` at once and tries to open the browser.
 2. Tell the user in one line to open the link and confirm the code.
@@ -30,6 +30,7 @@ The CLI stores its session outside the project. Never print, copy or ask for it.
 ## Read
 
 ```bash
+giftsofprometheus --json ask 'how to evaluate agents' --q 'agent evaluation' --q '智能体评估'  # passages, requires login
 giftsofprometheus --json talks search 'agent evaluation'   # published talks by title, summary, speaker or topic
 giftsofprometheus --json talks list --page 2               # the whole catalog, page by page
 giftsofprometheus --json talks get <slug-or-id>            # one talk: summary, speakers, topics, publication
@@ -40,6 +41,9 @@ giftsofprometheus --json favorites list                    # saved talks, requir
 giftsofprometheus --json profile get                       # interests and current task, requires login
 ```
 
+- For questions about what speakers say, use `ask` with 2–3 formulations: English, Chinese and the original language. For names, titles, topics and conferences use `talks search`.
+- Open a found transcript with `talks content <slug> --rec-id <recId>` from the `ask` response. Summarize positions of different speakers and give the passage `url` links with timecodes.
+- If `ask` returns 503, try later or use `talks search`.
 - Lists are paginated: check `totalPages` and pass `--page`.
 - Search and use the returned `slug` or `id` for exact reads.
 - A transcript is in the talk's original language. Segment timecodes are in milliseconds from the start of the talk. When a talk is a part of a longer recording, `sourceRange` gives its bounds in that recording. A talk without a transcript returns an empty array.
