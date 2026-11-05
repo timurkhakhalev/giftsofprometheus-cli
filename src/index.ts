@@ -257,7 +257,8 @@ async function waitLogin(device: DeviceLogin) {
     } catch (e) {
       const message = e instanceof Error ? e.message : ''
 
-      if (/slow.down|too frequently/i.test(message)) {
+      // 429: a server limit on polling; back off like slow_down instead of failing a login the user may already have confirmed
+      if (/slow.down|too frequently/i.test(message) || (e instanceof ApiError && e.status === 429)) {
         interval = Math.min(interval + 5, 60)
         continue
       }

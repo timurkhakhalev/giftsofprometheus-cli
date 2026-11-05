@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- `login --wait` and `login` back off on HTTP 429 the same way as on `slow_down` instead of failing a login the user may already have confirmed.
+
 ## 0.2.1
 
 - Skill: without an installed CLI the agent runs the same commands through `npx -y @giftsofprometheus/cli` instead of stopping to ask for an install. The site's "pick talks with your AI agent" prompt relies on this.
