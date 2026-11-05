@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2
+
+- Published to npm as `@giftsofprometheus/cli` through Trusted Publishing, with provenance.
+
 ## 0.1.1
 
 - The `User-Agent` is `giftsofprometheus/<version>` again, so the account page names CLI devices as before.

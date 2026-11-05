@@ -47,5 +47,5 @@ The README is in Russian and also brings readers to the site. Keep it so:
 ## Releasing
 
 1. Bump `version` in `package.json` and add a `CHANGELOG.md` section.
-2. Commit, tag `vX.Y.Z` and push the tag. The `release` workflow runs the checks, creates a GitHub release with the package tarball attached and, when the `NPM_TOKEN` secret is set, publishes to npm with provenance.
+2. Commit, tag `vX.Y.Z` and push the tag. The `release` workflow runs the checks, creates a GitHub release with the package tarball attached and, when the `NPM_PUBLISH` repository variable is `true`, publishes to npm through Trusted Publishing (OIDC, no stored token; provenance is attached automatically). The trusted publisher on npmjs.com names this repository, `release.yml` and the `npm` environment.
 3. Until the package is on npm, update the release URL in the README install section.
