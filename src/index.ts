@@ -64,10 +64,13 @@ async function stored(): Promise<Credentials | null> {
   return value !== 'unreadable' && value?.base === base ? value : null
 }
 
+/** `code` and `nextStep` come from the service: the code is stable, the next step says what to do about it */
 class ApiError extends Error {
   constructor(
     message: string,
-    readonly status = 1
+    readonly status = 1,
+    readonly code?: string,
+    readonly nextStep?: string
   ) {
     super(message)
   }
@@ -121,24 +124,58 @@ async function request(path: string, method = 'GET', body?: unknown, authenticat
 
   if (credential) headers.set('Authorization', `Bearer ${credential.token}`)
 
-  const response = await fetch(target, {
-    method,
-    headers,
-    redirect: 'error',
-    signal: AbortSignal.timeout(30_000),
-    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-  })
+  for (let attempt = 1; ; attempt++) {
+    let response: Response
 
-  const data = await response.json().catch(() => ({}))
+    try {
+      response = await fetch(target, {
+        method,
+        headers,
+        redirect: 'error',
+        signal: AbortSignal.timeout(30_000),
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      })
+    } catch (e) {
+      // A refused or reset connection never reached the service, so any method may repeat. A timeout may have, so it does not
+      if (attempt < RETRY_DELAYS_MS.length + 1 && !(e instanceof Error && e.name === 'TimeoutError')) {
+        await sleep(RETRY_DELAYS_MS[attempt - 1])
+        continue
+      }
 
-  if (!response.ok) {
-    const failure = z.object({ error_description: z.string().optional(), error: z.string().optional() }).safeParse(data)
+      throw new ApiError(`The service is unreachable: ${e instanceof Error ? e.message : 'network error'}. Try again in a minute.`)
+    }
+
+    const data = await response.json().catch(() => ({}))
+
+    if (response.ok) return data
+
+    const failure = z
+      .object({ error_description: z.string().optional(), error: z.string().optional(), code: z.string().optional(), nextStep: z.string().optional() })
+      .safeParse(data)
+
+    const code = failure.success ? failure.data.code : undefined
+
+    // 502-504 without a service error code come from the proxy in front of the service: a restart or a dropped connection
+    if (GATEWAY_STATUSES.has(response.status) && code === undefined) {
+      if (attempt < RETRY_DELAYS_MS.length + 1) {
+        await sleep(RETRY_DELAYS_MS[attempt - 1])
+        continue
+      }
+
+      throw new ApiError(`The service is temporarily unavailable (HTTP ${response.status}). Try again in a minute.`, response.status)
+    }
+
     const message = failure.success ? failure.data.error_description || failure.data.error || `HTTP ${response.status}` : `HTTP ${response.status}`
-    throw new ApiError(printable(message).slice(0, 500), response.status)
-  }
+    const nextStep = failure.success && failure.data.nextStep ? printable(failure.data.nextStep).slice(0, 500) : undefined
 
-  return data
+    throw new ApiError(printable(message).slice(0, 500), response.status, code === undefined ? undefined : printable(code).slice(0, 100), nextStep)
+  }
 }
+
+// Two repeats after a gateway error or a connection failure: a deploy switch or a dropped keep-alive connection passes in seconds
+const RETRY_DELAYS_MS = [500, 1500]
+
+const GATEWAY_STATUSES = new Set([502, 503, 504])
 
 function out(value: unknown) {
   console.log(JSON.stringify(value, null, program.opts().json ? 0 : 2))
@@ -166,9 +203,17 @@ function run<Args extends unknown[]>(fn: (...args: Args) => Promise<unknown>) {
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Unknown error'
       const status = e instanceof ApiError ? e.status : 1
+      const code = e instanceof ApiError ? e.code : undefined
+      // On 401 the CLI's own steps win: they say how to sign in from an agent, which the service cannot know
+      const nextStep = status === 401 ? SIGN_IN_STEPS : e instanceof ApiError ? e.nextStep : undefined
 
-      if (program.opts().json) console.log(JSON.stringify({ error: { message, status, ...(status === 401 ? { nextStep: SIGN_IN_STEPS } : {}) } }))
-      else console.error(printable(message))
+      if (program.opts().json) console.log(JSON.stringify({ error: { message, status, ...(code ? { code } : {}), ...(nextStep ? { nextStep } : {}) } }))
+      else {
+        console.error(printable(message))
+
+        if (nextStep) console.error(`Next: ${printable(nextStep)}`)
+      }
+
       process.exitCode = 1
     }
   }
