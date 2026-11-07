@@ -3,6 +3,7 @@
 ## 0.6.0
 
 - Errors carry the service's stable `code` and its `nextStep` when it sends them: `{"error":{"message","status","code","nextStep"}}` with `--json`, and a `Next:` line on stderr without it. On 401 `nextStep` stays the CLI's own sign-in steps. Service messages are now in Russian, so decide by `code`, not by the text.
+- `talks search` refuses an empty or whitespace query and points to `talks list`: the service answers such a query with the whole catalog.
 - A connection failure, or a 502, 503 or 504 from the proxy in front of the service (a response without a service error code), is repeated twice with backoff (0.5 s, 1.5 s). After that the error says the service is temporarily unavailable or unreachable. A timeout is not repeated.
 - Skill: decide by `code` and follow `nextStep`; on a temporary outage wait a minute and try once more. `ask` falls back to `talks search` on `passages_unavailable`.
 - `talks content` chapters have a Russian `title` (with a fallback to the source title) and the source `titleEn`, when the service provides them.

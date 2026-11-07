@@ -130,3 +130,19 @@ test('repeats a refused connection and then reports the service as unreachable',
   assert.match(JSON.parse(result.stdout).error.message, /^The service is unreachable: .*Try again in a minute\.$/)
   assert.ok(Date.now() - started >= 2000, 'two repeats with backoff')
 })
+
+test('refuses an empty search query before any request and points to talks list', async () => {
+  const server = await serve((request, response) => json(response, 200, { items: [], page: 1 }))
+
+  try {
+    for (const query of ['', '   ']) {
+      const result = await cli(server.base, ['talks', 'search', query])
+      assert.equal(result.code, 1)
+      assert.match(JSON.parse(result.stdout).error.message, /talks list/)
+    }
+
+    assert.equal(server.requests.length, 0)
+  } finally {
+    await server.close()
+  }
+})

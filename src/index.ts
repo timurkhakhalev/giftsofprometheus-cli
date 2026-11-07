@@ -659,7 +659,12 @@ talks
   .argument('<query>')
   .option('--page <page>', 'page number', '1')
   .action(
-    run((query: string, options: { page: string }) => request(`/api/knowledge/talks?q=${encodeURIComponent(query)}&page=${encodeURIComponent(options.page)}`))
+    run((query: string, options: { page: string }) => {
+      // The service answers an empty query with the whole catalog, which an agent would take for search results
+      if (!query.trim()) throw new ApiError('Empty search query. To browse the catalog, use: giftsofprometheus talks list')
+
+      return request(`/api/knowledge/talks?q=${encodeURIComponent(query)}&page=${encodeURIComponent(options.page)}`)
+    })
   )
 
 // The command a person typed, so a hint can be pasted back as is
