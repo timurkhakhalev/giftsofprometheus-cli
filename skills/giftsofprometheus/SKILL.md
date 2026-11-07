@@ -43,7 +43,7 @@ giftsofprometheus --json profile get                       # interests and curre
 
 - For questions about what speakers say, use `ask` with 2–3 formulations: English, Chinese and the original language. For names, titles, topics and conferences use `talks search`.
 - Open a found transcript with `talks content <slug> --rec-id <recId>` from the `ask` response. Summarize positions of different speakers and give the passage `url` links with timecodes.
-- If `ask` returns 503, try later or use `talks search`.
+- If `ask` fails with code `passages_unavailable`, use `talks search`.
 - Lists are paginated: check `totalPages` and pass `--page`.
 - Search and use the returned `slug` or `id` for exact reads.
 - A transcript is in the talk's original language. Segment timecodes are in milliseconds from the start of the talk. When a talk is a part of a longer recording, `sourceRange` gives its bounds in that recording. A talk without a transcript returns an empty array.
@@ -112,4 +112,6 @@ giftsofprometheus --json profile update --interest agents=high --remove-interest
 
 ## Errors
 
-With `--json` a failure prints `{"error":{"message","status"}}` and exits with code 1. Status 401 means the session is missing, expired or revoked: sign in as described in Sign in and repeat the command.
+With `--json` a failure prints `{"error":{"message","status","code","nextStep"}}` and exits with code 1. `code` and `nextStep` are present when the service sent them: decide by `code` (for example `talk_not_found`, `unknown_recommendation`, `rate_limited`), follow `nextStep`, and show `message` to the user as it is. Status 401 means the session is missing, expired or revoked: sign in as described in Sign in and repeat the command.
+
+The CLI repeats a request twice by itself after a connection failure or a 502, 503 or 504 from the proxy. If it still fails with "The service is temporarily unavailable" or "The service is unreachable", tell the user in one line, wait a minute and try once more before you stop.
